@@ -13,6 +13,8 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import android.widget.RemoteViews
+import com.example.lambda_test_live_activity.R
 
 class ForegroundNotificationService : Service() {
 
@@ -82,19 +84,55 @@ class ForegroundNotificationService : Service() {
 
         val largeIcon = BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-            // Use a proper monochrome small icon for notifications.
+        // Custom RemoteViews for collapsed and expanded notification
+        val collapsedView = RemoteViews(packageName, R.layout.notification_small)
+        collapsedView.setTextViewText(R.id.notif_title, title)
+        collapsedView.setTextViewText(R.id.notif_text, text)
+
+        val expandedView = RemoteViews(packageName, R.layout.notification_big)
+    expandedView.setTextViewText(R.id.notif_big_title, title)
+    expandedView.setTextViewText(R.id.notif_big_text, text)
+    // Use the text field as ETA display when available (caller can pass ETA via text)
+    expandedView.setTextViewText(R.id.notif_eta, text)
+
+        // Action intents for buttons (call, navigate, stop)
+        val callIntent = Intent(this, ForegroundNotificationService::class.java).apply {
+            action = ACTION_UPDATE
+            putExtra(EXTRA_TEXT, "call")
+        }
+        val callPending = PendingIntent.getService(this, 1, callIntent, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+
+        val navIntent = Intent(this, ForegroundNotificationService::class.java).apply {
+            action = ACTION_UPDATE
+            putExtra(EXTRA_TEXT, "navigate")
+        }
+        val navPending = PendingIntent.getService(this, 2, navIntent, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+
+        val stopIntent = Intent(this, ForegroundNotificationService::class.java).apply {
+            action = ACTION_STOP
+        }
+        val stopPending = PendingIntent.getService(this, 3, stopIntent, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+
+        // Wire button clicks in RemoteViews to the pending intents
+        expandedView.setOnClickPendingIntent(R.id.action_call, callPending)
+        expandedView.setOnClickPendingIntent(R.id.action_navigate, navPending)
+        expandedView.setOnClickPendingIntent(R.id.action_stop, stopPending)
+
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_notification)
-            .setLargeIcon(largeIcon)
             .setContentIntent(pendingIntent)
+            .setLargeIcon(largeIcon)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setColor(ContextCompat.getColor(this, android.R.color.holo_blue_dark))
-            .setProgress(0, 0, true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .build()
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setCustomContentView(collapsedView)
+            .setCustomBigContentView(expandedView)
+
+        // Indeterminate spinner feel
+        builder.setProgress(0, 0, true)
+
+        return builder.build()
     }
 }
