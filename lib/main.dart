@@ -42,6 +42,7 @@ class _MyAppState extends State<MyApp> {
   static const platform = MethodChannel('com.example.foreground/service');
   String _status = 'No ride';
   String _eta = '';
+  final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
   Future<void> _startService(String driver) async {
     // Ensure we have notification permission on Android 13+
@@ -130,9 +131,9 @@ class _MyAppState extends State<MyApp> {
           await _stopService();
         } else if (action == 'call') {
           // Example: show a snackbar or handle call action
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Call action tapped')));
+          _scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(content: Text('Call action tapped')));
         } else if (action == 'navigate') {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigate action tapped')));
+          _scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(content: Text('Navigate action tapped')));
         }
       }
     });
@@ -151,6 +152,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter + Native Foreground',
+      scaffoldMessengerKey: _scaffoldMessengerKey,
       home: Scaffold(
         appBar: AppBar(title: const Text('Uber-like Notification (Android)')),
         body: Padding(
