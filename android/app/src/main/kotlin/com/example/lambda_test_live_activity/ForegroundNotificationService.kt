@@ -96,22 +96,24 @@ class ForegroundNotificationService : Service() {
     expandedView.setTextViewText(R.id.notif_eta, text)
 
         // Action intents for buttons (call, navigate, stop)
-        val callIntent = Intent(this, ForegroundNotificationService::class.java).apply {
-            action = ACTION_UPDATE
-            putExtra(EXTRA_TEXT, "call")
+        // Create PendingIntents that open MainActivity with an action extra so Flutter can handle them
+        val callIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("notif_action", "call")
         }
-        val callPending = PendingIntent.getService(this, 1, callIntent, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+        val callPending = PendingIntent.getActivity(this, 1, callIntent, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
 
-        val navIntent = Intent(this, ForegroundNotificationService::class.java).apply {
-            action = ACTION_UPDATE
-            putExtra(EXTRA_TEXT, "navigate")
+        val navIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("notif_action", "navigate")
         }
-        val navPending = PendingIntent.getService(this, 2, navIntent, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+        val navPending = PendingIntent.getActivity(this, 2, navIntent, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
 
-        val stopIntent = Intent(this, ForegroundNotificationService::class.java).apply {
-            action = ACTION_STOP
+        val stopIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("notif_action", "stop")
         }
-        val stopPending = PendingIntent.getService(this, 3, stopIntent, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+        val stopPending = PendingIntent.getActivity(this, 3, stopIntent, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
 
         // Wire button clicks in RemoteViews to the pending intents
         expandedView.setOnClickPendingIntent(R.id.action_call, callPending)

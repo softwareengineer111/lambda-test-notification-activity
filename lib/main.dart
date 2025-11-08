@@ -118,6 +118,24 @@ class _MyAppState extends State<MyApp> {
 
     // Print FCM device token for debugging
     getDeviceToken();
+
+    // Listen for native notification button actions forwarded via MethodChannel
+    const nativeChannel = MethodChannel('com.example.foreground/service');
+    nativeChannel.setMethodCallHandler((call) async {
+      if (call.method == 'onNotificationAction') {
+        final args = call.arguments as Map?;
+        final action = args != null ? args['action'] as String? : null;
+        print('Notification action from native: $action');
+        if (action == 'stop') {
+          await _stopService();
+        } else if (action == 'call') {
+          // Example: show a snackbar or handle call action
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Call action tapped')));
+        } else if (action == 'navigate') {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigate action tapped')));
+        }
+      }
+    });
   }
 
   Future<void> getDeviceToken() async {
