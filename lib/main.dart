@@ -7,7 +7,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  print("🔥 Background message: ${message.data}");
+  print("🔥 Background message: ${message.notification?.title}");
+  print("🔥 Background message: ${message.notification?.body}");
 }
 
 Future<void> _requestNotificationPermission() async {
@@ -105,7 +106,7 @@ class _MyAppState extends State<MyApp> {
 
     // Handle incoming FCM messages while app is in foreground
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('📩 Message received: ${message.notification?.title}');
+      print('Message received: ${message.notification?.title}');
       final data = message.data;
 
       if (data['action'] == 'start') {

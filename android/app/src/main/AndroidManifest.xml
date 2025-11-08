@@ -43,7 +43,7 @@
         <!-- Receive FCM messages natively and show custom notifications -->
         <service
             android:name="com.example.lambda_test_live_activity.MyFirebaseMessagingService"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>

@@ -27,7 +27,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
         // Ensure the notification channel exists on Android O+
-        createChannel()
+        // createChannel() is called in onCreate so channel exists before messages arrive
         try {
             Log.d(TAG, "onMessageReceived: ${message.data}")
 
@@ -109,5 +109,18 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(chan)
         }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        // Ensure channel exists as early as possible
+        createChannel()
+        Log.d(TAG, "MyFirebaseMessagingService created and channel ensured")
+    }
+
+    override fun onNewToken(token: String) {
+        super.onNewToken(token)
+        Log.d(TAG, "FCM new token: $token")
+        // Optionally: send token to server here
     }
 }
