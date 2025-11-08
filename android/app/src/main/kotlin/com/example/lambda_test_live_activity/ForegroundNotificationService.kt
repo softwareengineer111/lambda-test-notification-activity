@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 
 class ForegroundNotificationService : Service() {
 
@@ -84,11 +85,15 @@ class ForegroundNotificationService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             // Use a proper monochrome small icon for notifications.
             .setSmallIcon(R.drawable.ic_stat_notification)
             .setLargeIcon(largeIcon)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setColor(ContextCompat.getColor(this, android.R.color.holo_blue_dark))
+            .setProgress(0, 0, true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
     }

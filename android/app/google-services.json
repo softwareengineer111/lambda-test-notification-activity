@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "703136202138",
+    "project_id": "lambda-live-activity",
+    "storage_bucket": "lambda-live-activity.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:703136202138:android:9b2cce48c8bcdf5f5f8e23",
+        "android_client_info": {
+          "package_name": "com.example.lambda_test_live_activity"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnVtGkH8q4RfUstcL5TCqaGaWDoronAWQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

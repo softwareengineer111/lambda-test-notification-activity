@@ -4,6 +4,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <!-- Allow data-sync type foreground services (suitable for notification-only FGS) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Firebase Cloud Messaging permissions -->
+    <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- optional if you keep dataSync type -->
     <!-- <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" /> -->
 
@@ -27,6 +30,10 @@
         </activity>
 
         <meta-data android:name="flutterEmbedding" android:value="2" />
+        <!-- Default notification channel for FCM notifications -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="ride_channel" />
 
         <service
             android:name="com.example.lambda_test_live_activity.ForegroundNotificationService"

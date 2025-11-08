@@ -42,3 +42,11 @@ android {
 flutter {
     source = "../.."
 }
+
+// Module-level dependencies (Firebase runtime libs should be declared here).
+dependencies {
+    implementation 'com.google.firebase:firebase-messaging:24.0.0'
+}
+
+apply plugin: 'com.google.gms.google-services'
+
