@@ -2,8 +2,32 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
-void main() {
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print("🔥 Background message: ${message.data}");
+}
+
+Future<void> _requestNotificationPermission() async {
+  final status = await Permission.notification.request();
+  if (status.isGranted) {
+    print("✅ Notification permission granted");
+  } else {
+    print("❌ Notification permission denied");
+  }
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // Request notification permission on Android 13+
+  await _requestNotificationPermission();
+
   runApp(const MyApp());
 }
 
@@ -75,6 +99,37 @@ class _MyAppState extends State<MyApp> {
   }
 
   @override
+  void initState() {
+    super.initState();
+
+    // Handle incoming FCM messages while app is in foreground
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print('📩 Message received: ${message.notification?.title}');
+      final data = message.data;
+
+      if (data['action'] == 'start') {
+        _startService(data['driver'] ?? 'Unknown');
+      } else if (data['action'] == 'update') {
+        _updateService(data['status'] ?? 'Updating...', data['eta'] ?? '...');
+      } else if (data['action'] == 'stop') {
+        _stopService();
+      }
+    });
+
+    // Print FCM device token for debugging
+    getDeviceToken();
+  }
+
+  Future<void> getDeviceToken() async {
+    try {
+      FirebaseMessaging messaging = FirebaseMessaging.instance;
+      String? token = await messaging.getToken();
+      print('🔥 FCM Device Token: $token');
+    } catch (e) {
+      print('Failed to get FCM token: $e');
+    }
+  }
+
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter + Native Foreground',
