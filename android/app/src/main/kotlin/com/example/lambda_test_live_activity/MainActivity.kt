@@ -5,6 +5,7 @@ import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import com.example.live_activities.LiveActivityManagerHolder
 
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "com.example.foreground/service"
@@ -46,6 +47,9 @@ class MainActivity: FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        // Wire custom Live Activity manager for Android RemoteViews integration
+        LiveActivityManagerHolder.instance = CustomLiveActivityManager(this)
 
         // If there was a pending notification action (activity launched from notification before channel ready), forward it now
         pendingNotifAction?.let { action ->

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:live_activities/live_activities.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -44,6 +45,10 @@ class _MyAppState extends State<MyApp> {
   String _status = 'No ride';
   String _eta = '';
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+  final LiveActivities _live = LiveActivities();
+  String? _latestActivityId;
+  // iOS-д ActivityKit-д тодорхойлсон ActivityAttributes нэр (extension-д яг энэ нэрээр байх ёстой)
+  final String _attributesType = 'LiveActivitiesAppAttributes';
 
   Future<void> _startService(String driver) async {
     // Ensure we have notification permission on Android 13+
@@ -121,6 +126,9 @@ class _MyAppState extends State<MyApp> {
     // Print FCM device token for debugging
     getDeviceToken();
 
+    // Initialize live_activities (iOS requires appGroupId; Android safely ignores)
+    _initLiveActivities();
+
     // Listen for native notification button actions forwarded via MethodChannel
     const nativeChannel = MethodChannel('com.example.foreground/service');
     nativeChannel.setMethodCallHandler((call) async {
@@ -138,6 +146,87 @@ class _MyAppState extends State<MyApp> {
         }
       }
     });
+  }
+
+  Future<void> _initLiveActivities() async {
+    try {
+      await _live.init(appGroupId: 'group.your.app');
+      // Listen activity updates to keep push token / ids (optional)
+      _live.activityUpdateStream.listen((event) {
+        event.map(
+          active: (a) {
+            _latestActivityId = a.activityId;
+            debugPrint('LiveActivity active: id=${a.activityId}, token=${a.activityToken}');
+          },
+          ended: (a) {
+            debugPrint('LiveActivity ended: id=${a.activityId}');
+          },
+          unknown: (a) {
+            debugPrint('LiveActivity unknown: id=${a.activityId}');
+          },
+          stale: (a) {
+            debugPrint('LiveActivity stale: id=${a.activityId}');
+          },
+        );
+      });
+    } catch (e) {
+      debugPrint('live_activities init failed: $e');
+    }
+  }
+
+  Future<void> _createLiveActivity() async {
+    try {
+      final id = await _live.createActivity(
+        _attributesType,
+        {
+          'matchName': 'Derby',
+          'matchStartDate': DateTime.now().millisecondsSinceEpoch,
+          'teamAName': 'Team A',
+          'teamAScore': 0,
+          'teamBName': 'Team B',
+          'teamBScore': 0,
+          // Optional images
+          //'teamAImageUrl': 'https://example.com/a.png',
+          //'teamBImageUrl': 'https://example.com/b.png',
+        },
+      );
+      _latestActivityId = id;
+      _scaffoldMessengerKey.currentState?.showSnackBar(SnackBar(content: Text('Live Activity created: $id')));
+    } catch (e) {
+      _scaffoldMessengerKey.currentState?.showSnackBar(SnackBar(content: Text('Create failed: $e')));
+    }
+  }
+
+  Future<void> _updateLiveActivity() async {
+    try {
+      final id = _latestActivityId;
+      if (id == null) {
+        _scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(content: Text('No activity to update')));
+        return;
+      }
+      await _live.updateActivity(id, {
+        'teamAScore': 1,
+        'teamBScore': 0,
+      });
+      _scaffoldMessengerKey.currentState?.showSnackBar(SnackBar(content: Text('Live Activity updated: $id')));
+    } catch (e) {
+      _scaffoldMessengerKey.currentState?.showSnackBar(SnackBar(content: Text('Update failed: $e')));
+    }
+  }
+
+  Future<void> _endLiveActivity() async {
+    try {
+      final id = _latestActivityId;
+      if (id == null) {
+        _scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(content: Text('No activity to end')));
+        return;
+      }
+      await _live.endActivity(id);
+      _scaffoldMessengerKey.currentState?.showSnackBar(SnackBar(content: Text('Live Activity ended: $id')));
+      _latestActivityId = null;
+    } catch (e) {
+      _scaffoldMessengerKey.currentState?.showSnackBar(SnackBar(content: Text('End failed: $e')));
+    }
   }
 
   Future<void> getDeviceToken() async {
@@ -183,6 +272,23 @@ class _MyAppState extends State<MyApp> {
               ElevatedButton(
                 onPressed: _stopService,
                 child: const Text('Stop Ride (stop service)'),
+              ),
+              const Divider(height: 32),
+              const Text('Live Activities (plugin)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: _createLiveActivity,
+                child: const Text('Create Live Activity'),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: _updateLiveActivity,
+                child: const Text('Update Live Activity'),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: _endLiveActivity,
+                child: const Text('End Live Activity'),
               ),
             ],
           ),
