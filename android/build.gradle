@@ -2,6 +2,8 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // OneSignal older SDK artifacts
+        maven { url 'https://maven.onesignal.com' }
     }
 }
 

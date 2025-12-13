@@ -44,6 +44,14 @@ class MainActivity: FlutterActivity() {
                     context.startService(intent)
                     result.success("stopped")
                 }
+                "showCustomNotification" -> {
+                    val args = call.arguments as? Map<String, String>
+                    val title = args?.get("title") ?: "Ride"
+                    val status = args?.get("status") ?: args?.get("text") ?: "Driver arriving..."
+                    val eta = args?.get("eta") ?: "5 min"
+                    RideNotificationHelper.show(applicationContext, title, status, eta)
+                    result.success(true)
+                }
                 else -> result.notImplemented()
             }
         }

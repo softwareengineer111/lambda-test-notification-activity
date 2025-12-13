@@ -5,6 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:live_activities/live_activities.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -108,6 +109,65 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+
+    // OneSignal init: replace with your actual OneSignal App ID
+    OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+    OneSignal.initialize('be13a59a-95c4-43c5-b104-43d3b3f1921d');
+    // Request user permission (Android 13+ / iOS)
+    OneSignal.Notifications.requestPermission(true);
+    // Log subscription state & playerId for testing
+    OneSignal.User.pushSubscription.addObserver((state) {
+      debugPrint('OneSignal subscribed: ${state.current.optedIn}, playerId: ${state.current.id}');
+    });
+    // Log initial state via v5 properties
+    debugPrint('OneSignal initial subscribed: ${OneSignal.User.pushSubscription.optedIn}, playerId: ${OneSignal.User.pushSubscription.id}');
+    OneSignal.Notifications.addForegroundWillDisplayListener((event) {
+      // Always show notification in foreground
+      event.preventDefault();
+      // Instead of default notification, show native custom card
+      final data = event.notification.additionalData ?? {};
+      final title = event.notification.title ?? (data['title'] ?? 'Ride');
+      final status = data['status'] ?? event.notification.body ?? 'Driver arriving...';
+      final eta = data['eta'] ?? '5 min';
+      platform.invokeMethod('showCustomNotification', {
+        'title': title,
+        'status': status,
+        'eta': eta,
+      });
+      // Optionally handle payload for native service updates
+      final payload = event.notification.additionalData ?? {};
+      final action = payload['action'];
+      if (action == 'start') {
+        _startService(payload['driver'] ?? 'Unknown');
+      } else if (action == 'update') {
+        _updateService(payload['status'] ?? 'Updating...', payload['eta'] ?? '...');
+      } else if (action == 'stop') {
+        _stopService();
+      }
+    });
+    OneSignal.Notifications.addClickListener((event) {
+      final data = event.notification.additionalData ?? {};
+      final action = data['action'];
+
+      // Show custom notification when user taps (works for background notifications)
+      final title = event.notification.title ?? (data['title'] ?? 'Ride');
+      final status = data['status'] ?? event.notification.body ?? 'Driver arriving...';
+      final eta = data['eta'] ?? '5 min';
+      platform.invokeMethod('showCustomNotification', {
+        'title': title,
+        'status': status,
+        'eta': eta,
+      });
+
+      // Handle action
+      if (action == 'start') {
+        _startService(data['driver'] ?? 'Unknown');
+      } else if (action == 'update') {
+        _updateService(status, eta);
+      } else if (action == 'stop') {
+        _stopService();
+      }
+    });
 
     // Handle incoming FCM messages while app is in foreground
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {

@@ -29,6 +29,10 @@
             </intent-filter>
         </activity>
 
+        <receiver
+            android:name=".NotificationActionReceiver"
+            android:exported="false" />
+
         <meta-data android:name="flutterEmbedding" android:value="2" />
         <!-- Default notification channel for FCM notifications -->
         <meta-data
