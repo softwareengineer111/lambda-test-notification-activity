@@ -5,9 +5,17 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:live_activities/live_activities.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'screens/send_notification.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
+
+  // Enable Firebase App Check (required if enforceAppCheck: true)
+  await FirebaseAppCheck.instance.activate();
   print("🔥 Background message: ${message.notification?.title}");
   print("🔥 Background message: ${message.notification?.body}");
 }
@@ -25,12 +33,67 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
+  // Initialize local notifications for foreground display on Android/iOS
+  await _Notifications.init();
+
+  // App Check: use provided debug token if passed via dart-define, else default
+  const String kDebugAppCheckToken = String.fromEnvironment('FIREBASE_APPCHECK_DEBUG_TOKEN');
+  if (kDebugAppCheckToken.isNotEmpty) {
+    await FirebaseAppCheck.instance.activate(androidProvider: AndroidProvider.debug, appleProvider: AppleProvider.debug);
+  } else {
+    await FirebaseAppCheck.instance.activate();
+  }
+
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // Request notification permission on Android 13+
   await _requestNotificationPermission();
 
   runApp(const MyApp());
+}
+
+class _Notifications {
+  static final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
+    'live_activity_channel',
+    'Live Activity Alerts',
+    description: 'Shows heads-up notifications for ride status',
+    importance: Importance.high,
+  );
+
+  static Future<void> init() async {
+    const AndroidInitializationSettings androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    final DarwinInitializationSettings iosInit = const DarwinInitializationSettings(
+      requestSoundPermission: true,
+      requestBadgePermission: true,
+      requestAlertPermission: true,
+    );
+    final InitializationSettings settings = InitializationSettings(android: androidInit, iOS: iosInit);
+    await _plugin.initialize(settings, onDidReceiveNotificationResponse: (NotificationResponse response) async {
+      // Forward actions via MethodChannel if desired
+      const nativeChannel = MethodChannel('com.example.foreground/service');
+      await nativeChannel.invokeMethod('onNotificationAction', {'action': response.payload});
+    });
+
+    // Android channel setup
+    await _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(_channel);
+  }
+
+  static Future<void> show({required String title, required String body, String? payload}) async {
+    final androidDetails = AndroidNotificationDetails(
+      _channel.id,
+      _channel.name,
+      channelDescription: _channel.description,
+      importance: Importance.high,
+      priority: Priority.high,
+      category: AndroidNotificationCategory.call,
+      styleInformation: const BigTextStyleInformation(''),
+      ticker: 'ride_status',
+    );
+    const iosDetails = DarwinNotificationDetails(presentAlert: true, presentSound: true, presentBadge: false);
+    final details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+    await _plugin.show(DateTime.now().millisecondsSinceEpoch ~/ 1000, title, body, details, payload: payload);
+  }
 }
 
 class MyApp extends StatefulWidget {
@@ -110,9 +173,16 @@ class _MyAppState extends State<MyApp> {
     super.initState();
 
     // Handle incoming FCM messages while app is in foreground
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       print('Message received: ${message.notification?.title}');
       final data = message.data;
+
+      // Show a local notification even when app is in foreground
+      await _Notifications.show(
+        title: message.notification?.title ?? data['title'] ?? 'Update',
+        body: message.notification?.body ?? data['body'] ?? 'Tap to view',
+        payload: data['action'] ?? 'open',
+      );
 
       if (data['action'] == 'start') {
         _startService(data['driver'] ?? 'Unknown');
@@ -289,6 +359,17 @@ class _MyAppState extends State<MyApp> {
               ElevatedButton(
                 onPressed: _endLiveActivity,
                 child: const Text('End Live Activity'),
+              ),
+              const Divider(height: 32),
+              Builder(
+                builder: (ctx) => ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(ctx).push(
+                      MaterialPageRoute(builder: (_) => const SendNotificationScreen()),
+                    );
+                  },
+                  child: const Text('Open Send Notification Form'),
+                ),
               ),
             ],
           ),
