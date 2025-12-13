@@ -31,18 +31,24 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         try {
             Log.d(TAG, "onMessageReceived: ${message.data}")
 
-            val title = message.notification?.title ?: message.data["title"] ?: "Ride"
+            val title = message.notification?.title ?: message.data["title"] ?: message.data["driver"] ?: "Ride"
             val text = message.notification?.body ?: message.data["text"] ?: message.data["eta"] ?: "Updating..."
 
-            // Build RemoteViews similar to ForegroundNotificationService
-            val collapsedView = RemoteViews(packageName, R.layout.notification_small)
-            collapsedView.setTextViewText(R.id.notif_title, title)
-            collapsedView.setTextViewText(R.id.notif_text, text)
+            // Build Live Activity-style RemoteViews (Android) using live_activity.xml
+            val liveView = RemoteViews(packageName, R.layout.live_activity)
+            // Map ride info into generic fields
+            val teamAName = message.data["driver"] ?: title
+            val teamBName = message.data["status"] ?: "Status"
+            val teamAScore = (message.data["scoreA"] ?: "0").toString()
+            val teamBScore = (message.data["scoreB"] ?: "0").toString()
+            val tsMillis = (message.data["timestamp"] ?: System.currentTimeMillis().toString()).toLongOrNull() ?: System.currentTimeMillis()
 
-            val expandedView = RemoteViews(packageName, R.layout.notification_big)
-            expandedView.setTextViewText(R.id.notif_big_title, title)
-            expandedView.setTextViewText(R.id.notif_big_text, text)
-            expandedView.setTextViewText(R.id.notif_eta, text)
+            liveView.setTextViewText(R.id.team1_name, teamAName)
+            liveView.setTextViewText(R.id.team2_name, teamBName)
+            liveView.setTextViewText(R.id.score, "$teamAScore : $teamBScore")
+            val elapsedRealtime = android.os.SystemClock.elapsedRealtime()
+            val base = elapsedRealtime - (System.currentTimeMillis() - tsMillis)
+            liveView.setChronometer(R.id.match_time, base, null, true)
 
             // Base content intent to open the app when tapping the notification
             val contentIntent = Intent(this, MainActivity::class.java).apply {
@@ -79,20 +85,21 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 .setSmallIcon(R.drawable.ic_stat_notification)
                 .setContentIntent(contentPending)
                 .setLargeIcon(largeIcon)
-                .setOngoing(false)
+                .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setColor(ContextCompat.getColor(this, android.R.color.holo_blue_dark))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-                .setCustomContentView(collapsedView)
-                .setCustomBigContentView(expandedView)
+                .setCustomContentView(liveView)
+                .setCustomBigContentView(liveView)
 
             builder.setProgress(0, 0, true)
 
-            // Wire the buttons to pending intents on the expanded view (RemoteViews)
-            expandedView.setOnClickPendingIntent(R.id.action_call, callPending)
-            expandedView.setOnClickPendingIntent(R.id.action_navigate, navPending)
-            expandedView.setOnClickPendingIntent(R.id.action_stop, stopPending)
+            // If your live_activity.xml defines action buttons, wire them here instead.
+            // Example (uncomment when you have these IDs):
+            // liveView.setOnClickPendingIntent(R.id.action_call, callPending)
+            // liveView.setOnClickPendingIntent(R.id.action_navigate, navPending)
+            // liveView.setOnClickPendingIntent(R.id.action_stop, stopPending)
 
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.notify(NOTIF_ID, builder.build())
