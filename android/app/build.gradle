@@ -47,6 +47,8 @@ flutter {
 // Module-level dependencies (Firebase runtime libs should be declared here).
 dependencies {
     implementation 'com.google.firebase:firebase-messaging:24.0.0'
+    // OneSignal native SDK for notification handling
+    implementation 'com.onesignal:OneSignal:[5.0.0, 5.99.99]'
 }
 
 apply plugin: 'com.google.gms.google-services'

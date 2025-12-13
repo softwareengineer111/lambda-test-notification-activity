@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:live_activities/live_activities.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'screens/send_notification_screen.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -122,37 +123,46 @@ class _MyAppState extends State<MyApp> {
     // Log initial state via v5 properties
     debugPrint('OneSignal initial subscribed: ${OneSignal.User.pushSubscription.optedIn}, playerId: ${OneSignal.User.pushSubscription.id}');
     OneSignal.Notifications.addForegroundWillDisplayListener((event) {
-      // Always show notification in foreground
+      debugPrint('🔔 Foreground notification received: ${event.notification.title}');
+      // Prevent default OneSignal notification
       event.preventDefault();
-      // Instead of default notification, show native custom card
+
+      // Show custom notification instead
       final data = event.notification.additionalData ?? {};
       final title = event.notification.title ?? (data['title'] ?? 'Ride');
       final status = data['status'] ?? event.notification.body ?? 'Driver arriving...';
       final eta = data['eta'] ?? '5 min';
+
+      debugPrint('📱 Showing custom notification: $title - $status');
       platform.invokeMethod('showCustomNotification', {
         'title': title,
         'status': status,
         'eta': eta,
+      }).then((result) {
+        debugPrint('✅ Custom notification shown: $result');
+      }).catchError((error) {
+        debugPrint('❌ Failed to show custom notification: $error');
       });
-      // Optionally handle payload for native service updates
-      final payload = event.notification.additionalData ?? {};
-      final action = payload['action'];
+
+      // Handle action
+      final action = data['action'];
       if (action == 'start') {
-        _startService(payload['driver'] ?? 'Unknown');
+        _startService(data['driver'] ?? 'Unknown');
       } else if (action == 'update') {
-        _updateService(payload['status'] ?? 'Updating...', payload['eta'] ?? '...');
+        _updateService(data['status'] ?? status, data['eta'] ?? eta);
       } else if (action == 'stop') {
         _stopService();
       }
     });
     OneSignal.Notifications.addClickListener((event) {
+      debugPrint('👆 Notification clicked: ${event.notification.title}');
       final data = event.notification.additionalData ?? {};
-      final action = data['action'];
 
-      // Show custom notification when user taps (works for background notifications)
+      // Show custom notification when clicked from background
       final title = event.notification.title ?? (data['title'] ?? 'Ride');
       final status = data['status'] ?? event.notification.body ?? 'Driver arriving...';
       final eta = data['eta'] ?? '5 min';
+
       platform.invokeMethod('showCustomNotification', {
         'title': title,
         'status': status,
@@ -160,6 +170,7 @@ class _MyAppState extends State<MyApp> {
       });
 
       // Handle action
+      final action = data['action'];
       if (action == 'start') {
         _startService(data['driver'] ?? 'Unknown');
       } else if (action == 'update') {
@@ -349,6 +360,25 @@ class _MyAppState extends State<MyApp> {
               ElevatedButton(
                 onPressed: _endLiveActivity,
                 child: const Text('End Live Activity'),
+              ),
+              const Divider(height: 32),
+              const Text('Push Notifications', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Builder(
+                builder: (context) => ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const SendNotificationScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.send),
+                  label: const Text('Send Push Notification'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
               ),
             ],
           ),
