@@ -321,25 +321,6 @@ class _MyAppState extends State<MyApp> {
                 onPressed: _endLiveActivity,
                 child: const Text('End Live Activity'),
               ),
-              const Divider(height: 32),
-              const Text('Push Notifications', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Builder(
-                builder: (context) => ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const SendNotificationScreen()),
-                    );
-                  },
-                  icon: const Icon(Icons.send),
-                  label: const Text('Send Push Notification'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
             ],
           ),
         ),
