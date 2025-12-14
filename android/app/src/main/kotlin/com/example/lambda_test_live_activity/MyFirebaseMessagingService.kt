@@ -74,7 +74,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 var jobTitle = message.data["jobTitle"] ?: body
                 var description = message.data["description"] ?: "Ажлын байр нээгдлээ"
                 var jobUrl = message.data["jobUrl"]
-                var imageUrl = message.data["imageUrl"]
+                var companyImageUrl = message.data["companyImageUrl"] ?: message.data["imageUrl"]
                 
                 // Override with OneSignal custom data if available
                 if (customJson != null) {
@@ -86,15 +86,22 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             jobTitle = additionalData.optString("jobTitle", jobTitle)
                             description = additionalData.optString("description", description)
                             jobUrl = additionalData.optString("jobUrl", jobUrl)
-                            imageUrl = additionalData.optString("imageUrl", imageUrl)
+                            companyImageUrl = additionalData.optString("companyImageUrl", 
+                                additionalData.optString("imageUrl", companyImageUrl))
+                            
+                            Log.d(TAG, "📦 Extracted from OneSignal additionalData:")
+                            Log.d(TAG, "  company: $company")
+                            Log.d(TAG, "  jobTitle: $jobTitle")
+                            Log.d(TAG, "  description: $description")
+                            Log.d(TAG, "  companyImageUrl: $companyImageUrl")
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Error parsing job data from custom", e)
                     }
                 }
                 
-                Log.d(TAG, "🔔 Showing JOB notification: company=$company, jobTitle=$jobTitle, imageUrl=$imageUrl")
-                JobNotificationHelper.show(applicationContext, company, jobTitle, description, jobUrl, imageUrl)
+                Log.d(TAG, "🔔 Showing JOB notification: company=$company, jobTitle=$jobTitle, companyImageUrl=$companyImageUrl")
+                JobNotificationHelper.show(applicationContext, company, jobTitle, description, jobUrl, companyImageUrl)
             } else {
                 // Ride notification (fallback)
                 val status = message.data["status"] ?: body

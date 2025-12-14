@@ -10,10 +10,10 @@ class SendNotificationScreen extends StatefulWidget {
 }
 
 class _SendNotificationScreenState extends State<SendNotificationScreen> {
-  final _titleController = TextEditingController();
-  final _statusController = TextEditingController();
-  final _etaController = TextEditingController(text: '5 min');
-  final _driverController = TextEditingController(text: 'Ariun');
+  final _companyController = TextEditingController(text: 'Ламбда ХХК');
+  final _jobTitleController = TextEditingController(text: 'Мобайл аппликейшн хөгжүүлэгч');
+  final _descriptionController = TextEditingController(text: 'iOS болон Android аппликейшн хөгжүүлэх');
+  final _imageUrlController = TextEditingController(text: 'https://picsum.photos/200');
   String _selectedAction = 'update';
   bool _sending = false;
 
@@ -23,10 +23,10 @@ class _SendNotificationScreenState extends State<SendNotificationScreen> {
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _statusController.dispose();
-    _etaController.dispose();
-    _driverController.dispose();
+    _companyController.dispose();
+    _jobTitleController.dispose();
+    _descriptionController.dispose();
+    _imageUrlController.dispose();
     super.dispose();
   }
 
@@ -39,34 +39,29 @@ class _SendNotificationScreenState extends State<SendNotificationScreen> {
     setState(() => _sending = true);
 
     try {
-      final title = _titleController.text.isEmpty ? 'Ride Update' : _titleController.text;
-      final status = _statusController.text.isEmpty ? 'Driver arriving...' : _statusController.text;
-      final eta = _etaController.text.isEmpty ? '5 min' : _etaController.text;
-      final driver = _driverController.text.isEmpty ? 'Driver' : _driverController.text;
+      final company = _companyController.text.isEmpty ? 'Компани' : _companyController.text;
+      final jobTitle = _jobTitleController.text.isEmpty ? 'Ажлын байр' : _jobTitleController.text;
+      final description = _descriptionController.text.isEmpty ? 'Албан тушаал зарлагдлаа' : _descriptionController.text;
+      final imageUrl = _imageUrlController.text.isEmpty ? 'https://picsum.photos/200' : _imageUrlController.text;
 
-      // Build OneSignal notification payload
-      // NOTE: OneSignal rejects notifications with completely missing/empty contents.
-      // To send data-only while letting FCM deliver to our service, include a minimal blank content
-      // and set content_available=true. This prevents OneSignal's UI from showing while still delivering.
+      // Build OneSignal notification payload matching user's structure
       final payload = {
         'app_id': _oneSignalAppId,
-        'included_segments': ['All'], // Send to all subscribed users
-        // Optional headings if provided
-        'headings': {'en': title},
-        // Minimal content to satisfy OneSignal REST validation; use a single space when status is empty
-        'contents': {'en': (status.isEmpty) ? ' ' : status},
-        // Ensure Android data-only delivery
+        'included_segments': ['All'],
+        'headings': {'en': company},
+        'contents': {'en': jobTitle},
         'content_available': true,
         'mutable_content': true,
-        // Custom data for job notification
         'data': {
           'type': 'job',
-          'company': title,
-          'jobTitle': status,
-          'description': 'Албан тушаал зарлагдлаа',
-          'jobUrl': 'https://example.com/jobs/123',
-          'imageUrl': 'https://picsum.photos/200', // Test image
+          'company': company,
+          'jobTitle': jobTitle,
+          'description': description,
+          'companyImageUrl': imageUrl,
           'action': _selectedAction,
+          'ride_id': 123,
+          'eta': '5 min',
+          'driver': 'Ariun',
         },
       };
 
@@ -114,39 +109,41 @@ class _SendNotificationScreenState extends State<SendNotificationScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             TextField(
-              controller: _titleController,
+              controller: _companyController,
               decoration: const InputDecoration(
-                labelText: 'Title',
-                hintText: 'Ride Update',
+                labelText: 'Company Name',
+                hintText: 'Ламбда ХХК',
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
-              controller: _statusController,
+              controller: _jobTitleController,
               decoration: const InputDecoration(
-                labelText: 'Status',
-                hintText: 'Driver arriving...',
+                labelText: 'Job Title',
+                hintText: 'Мобайл аппликейшн хөгжүүлэгч',
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
-              controller: _etaController,
+              controller: _descriptionController,
               decoration: const InputDecoration(
-                labelText: 'ETA',
-                hintText: '5 min',
+                labelText: 'Description',
+                hintText: 'iOS болон Android аппликейшн хөгжүүлэх',
                 border: OutlineInputBorder(),
               ),
+              maxLines: 2,
             ),
             const SizedBox(height: 16),
             TextField(
-              controller: _driverController,
+              controller: _imageUrlController,
               decoration: const InputDecoration(
-                labelText: 'Driver Name',
-                hintText: 'Ariun',
+                labelText: 'Company Logo URL',
+                hintText: 'https://example.com/logo.png',
                 border: OutlineInputBorder(),
               ),
+              keyboardType: TextInputType.url,
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(

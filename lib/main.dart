@@ -95,10 +95,10 @@ class _MyAppState extends State<MyApp> {
         final jobTitle = data['jobTitle'] ?? event.notification.body ?? 'Job Opening';
         final description = data['description'] ?? 'Албан тушаал зарлагдлаа';
         final jobUrl = data['jobUrl'];
-        final imageUrl = data['imageUrl'];
+        final companyImageUrl = data['companyImageUrl'] ?? data['imageUrl'];
 
         debugPrint('💼 Foreground job → Live Activity: $company - $jobTitle');
-        _ensureJobActivity(company, jobTitle, description, imageUrl);
+        _ensureJobActivity(company, jobTitle, description, companyImageUrl);
       }
     });
     OneSignal.Notifications.addClickListener((event) {
@@ -111,9 +111,9 @@ class _MyAppState extends State<MyApp> {
         final company = data['company'] ?? event.notification.title ?? 'Company';
         final jobTitle = data['jobTitle'] ?? event.notification.body ?? 'Job Opening';
         final description = data['description'] ?? 'Албан тушаал зарлагдлаа';
-        final imageUrl = data['imageUrl'];
+        final companyImageUrl = data['companyImageUrl'] ?? data['imageUrl'];
         debugPrint('👆 Click → Job Live Activity');
-        _ensureJobActivity(company, jobTitle, description, imageUrl);
+        _ensureJobActivity(company, jobTitle, description, companyImageUrl);
       }
 
       // Handle action
@@ -125,7 +125,7 @@ class _MyAppState extends State<MyApp> {
             data['company'] ?? event.notification.title ?? 'Company',
             data['jobTitle'] ?? event.notification.body ?? 'Job Opening',
             data['description'] ?? 'Албан тушаал зарлагдлаа',
-            data['imageUrl'],
+            data['companyImageUrl'] ?? data['imageUrl'],
           );
         }
       }
@@ -140,7 +140,7 @@ class _MyAppState extends State<MyApp> {
         data['company'] ?? message.notification?.title ?? 'Company',
         data['jobTitle'] ?? message.notification?.body ?? 'Job Opening',
         data['description'] ?? 'Албан тушаал зарлагдлаа',
-        data['imageUrl'],
+        data['companyImageUrl'] ?? data['imageUrl'],
       );
     });
 
@@ -171,7 +171,7 @@ class _MyAppState extends State<MyApp> {
 
   // Removed ride Live Activity helper; focusing on job Live Activity only
 
-  Future<void> _ensureJobActivity(String company, String jobTitle, String description, String? imageUrl) async {
+  Future<void> _ensureJobActivity(String company, String jobTitle, String description, String? companyImageUrl) async {
     try {
       // If an activity already exists, update; else create a new one
       if (_latestActivityId == null) {
@@ -181,7 +181,7 @@ class _MyAppState extends State<MyApp> {
             'company': company,
             'jobTitle': jobTitle,
             'description': description,
-            if (imageUrl != null) 'imageUrl': imageUrl,
+            if (companyImageUrl != null) 'companyImageUrl': companyImageUrl,
             'postedAt': DateTime.now().millisecondsSinceEpoch,
           },
         );
@@ -192,7 +192,7 @@ class _MyAppState extends State<MyApp> {
           'company': company,
           'jobTitle': jobTitle,
           'description': description,
-          if (imageUrl != null) 'imageUrl': imageUrl,
+          if (companyImageUrl != null) 'companyImageUrl': companyImageUrl,
           'updatedAt': DateTime.now().millisecondsSinceEpoch,
         });
         debugPrint('Job Live Activity updated: $_latestActivityId');
@@ -320,6 +320,22 @@ class _MyAppState extends State<MyApp> {
               ElevatedButton(
                 onPressed: _endLiveActivity,
                 child: const Text('End Live Activity'),
+              ),
+              const Divider(height: 32),
+              const Text('OneSignal Push Notifications', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SendNotificationScreen()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Send Test Notification'),
               ),
             ],
           ),

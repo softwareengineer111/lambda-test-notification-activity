@@ -63,6 +63,12 @@ class CustomLiveActivityManager(context: Context) : LiveActivityManager(context)
         postedAtMillis: Long,
         imageUrl: String?,
     ) {
+        android.util.Log.d("CustomLiveActivity", "🎨 updateRemoteViewsForJob called")
+        android.util.Log.d("CustomLiveActivity", "  Setting company: $company")
+        android.util.Log.d("CustomLiveActivity", "  Setting jobTitle: $jobTitle")
+        android.util.Log.d("CustomLiveActivity", "  Setting description: $description")
+        android.util.Log.d("CustomLiveActivity", "  Loading imageUrl: $imageUrl")
+        
         // Map existing views: company, title, description
         remoteViews.setTextViewText(R.id.team1_name, company)
         remoteViews.setTextViewText(R.id.team2_name, jobTitle)
@@ -74,7 +80,12 @@ class CustomLiveActivityManager(context: Context) : LiveActivityManager(context)
         remoteViews.setChronometer(R.id.match_time, base, null, true)
 
         val logo = if (!imageUrl.isNullOrEmpty()) loadImageBitmap(imageUrl) else null
-        logo?.let { remoteViews.setImageViewBitmap(R.id.team1_image_placeholder, it) }
+        if (logo != null) {
+            android.util.Log.d("CustomLiveActivity", "✅ Logo loaded successfully: ${logo.width}x${logo.height}")
+            remoteViews.setImageViewBitmap(R.id.team1_image_placeholder, logo)
+        } else {
+            android.util.Log.w("CustomLiveActivity", "❌ Failed to load logo from URL")
+        }
     }
 
     override suspend fun buildNotification(
@@ -82,6 +93,11 @@ class CustomLiveActivityManager(context: Context) : LiveActivityManager(context)
         event: String,
         data: Map<String, Any>
     ): Notification {
+        android.util.Log.d("CustomLiveActivity", "=== buildNotification called ===")
+        android.util.Log.d("CustomLiveActivity", "Event: $event")
+        android.util.Log.d("CustomLiveActivity", "Data keys: ${data.keys}")
+        android.util.Log.d("CustomLiveActivity", "Full data: $data")
+        
         // Prefer job searching fields
         val company = data["company"] as? String ?: (data["matchName"] as? String ?: "Company")
         val jobTitle = data["jobTitle"] as? String ?: (data["teamBName"] as? String ?: "Job Title")
@@ -89,10 +105,17 @@ class CustomLiveActivityManager(context: Context) : LiveActivityManager(context)
         val postedAt = (data["postedAt"] as? Number)?.toLong()
             ?: (data["matchStartDate"] as? Number)?.toLong()
             ?: System.currentTimeMillis()
-        val imageUrl = data["imageUrl"] as? String
+        val companyImageUrl = data["companyImageUrl"] as? String ?: data["imageUrl"] as? String
+
+        android.util.Log.d("CustomLiveActivity", "📋 Extracted values:")
+        android.util.Log.d("CustomLiveActivity", "  company: $company")
+        android.util.Log.d("CustomLiveActivity", "  jobTitle: $jobTitle")
+        android.util.Log.d("CustomLiveActivity", "  description: $description")
+        android.util.Log.d("CustomLiveActivity", "  companyImageUrl: $companyImageUrl")
+        android.util.Log.d("CustomLiveActivity", "  postedAt: $postedAt")
 
         // Update views for job
-        updateRemoteViewsForJob(company, jobTitle, description, postedAt, imageUrl)
+        updateRemoteViewsForJob(company, jobTitle, description, postedAt, companyImageUrl)
 
         return notification
             .setSmallIcon(R.drawable.ic_stat_notification)
