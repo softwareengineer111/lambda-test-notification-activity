@@ -129,7 +129,7 @@ class _MyAppState extends State<MyApp> {
       // Prevent default OneSignal notification
       event.preventDefault();
 
-      // Show custom notification instead
+      // Instead of native custom notification, reflect via Live Activity
       final data = event.notification.additionalData ?? {};
       final notificationType = data['type'] ?? 'ride';
 
@@ -141,59 +141,59 @@ class _MyAppState extends State<MyApp> {
         final jobUrl = data['jobUrl'];
         final imageUrl = data['imageUrl'];
 
-        debugPrint('💼 Showing job notification: $company - $jobTitle');
-        platform.invokeMethod('showJobNotification', {
-          'company': company,
-          'jobTitle': jobTitle,
-          'description': description,
-          'jobUrl': jobUrl,
-          'imageUrl': imageUrl,
-        }).then((result) {
-          debugPrint('✅ Job notification shown: $result');
-          // Also reflect this via Live Activity (iOS) when in foreground
-          _ensureJobActivity(company, jobTitle, description, imageUrl);
-        }).catchError((error) {
-          debugPrint('❌ Failed to show job notification: $error');
-        });
+        debugPrint('💼 Foreground job → Live Activity: $company - $jobTitle');
+        _ensureJobActivity(company, jobTitle, description, imageUrl);
       } else {
         // Ride notification
         final title = event.notification.title ?? (data['title'] ?? 'Ride');
         final status = data['status'] ?? event.notification.body ?? 'Driver arriving...';
         final eta = data['eta'] ?? '5 min';
 
-        debugPrint('📱 Showing custom notification: $title - $status');
-        platform.invokeMethod('showCustomNotification', {
-          'title': title,
-          'status': status,
-          'eta': eta,
-        }).then((result) {
-          debugPrint('✅ Custom notification shown: $result');
-        }).catchError((error) {
-          debugPrint('❌ Failed to show custom notification: $error');
-        });
+        debugPrint('🚗 Foreground ride → Live Activity: $title - $status');
+        _createRideActivityFromNotification(title, status, eta);
       }
     });
     OneSignal.Notifications.addClickListener((event) {
       debugPrint('👆 Notification clicked: ${event.notification.title}');
       final data = event.notification.additionalData ?? {};
 
-      // Show custom notification when clicked from background
-      final title = event.notification.title ?? (data['title'] ?? 'Ride');
-      final status = data['status'] ?? event.notification.body ?? 'Driver arriving...';
-      final eta = data['eta'] ?? '5 min';
-
-      platform.invokeMethod('showCustomNotification', {
-        'title': title,
-        'status': status,
-        'eta': eta,
-      });
+      // On click: show ONLY Live Activities, nothing else
+      final notificationType = data['type'] ?? 'ride';
+      if (notificationType == 'job') {
+        final company = data['company'] ?? event.notification.title ?? 'Company';
+        final jobTitle = data['jobTitle'] ?? event.notification.body ?? 'Job Opening';
+        final description = data['description'] ?? 'Албан тушаал зарлагдлаа';
+        final imageUrl = data['imageUrl'];
+        debugPrint('👆 Click → Job Live Activity');
+        _ensureJobActivity(company, jobTitle, description, imageUrl);
+      } else {
+        final title = event.notification.title ?? (data['title'] ?? 'Ride');
+        final status = data['status'] ?? event.notification.body ?? 'Driver arriving...';
+        final eta = data['eta'] ?? '5 min';
+        debugPrint('👆 Click → Ride Live Activity');
+        _createRideActivityFromNotification(title, status, eta);
+      }
 
       // Handle action
       final action = data['action'];
       if (action == 'start') {
         _startService(data['driver'] ?? 'Unknown');
       } else if (action == 'update') {
-        _updateService(status, eta);
+        // Also reflect updates through Live Activity
+        if ((data['type'] ?? 'ride') == 'job') {
+          _ensureJobActivity(
+            data['company'] ?? event.notification.title ?? 'Company',
+            data['jobTitle'] ?? event.notification.body ?? 'Job Opening',
+            data['description'] ?? 'Албан тушаал зарлагдлаа',
+            data['imageUrl'],
+          );
+        } else {
+          _createRideActivityFromNotification(
+            event.notification.title ?? (data['title'] ?? 'Ride'),
+            data['status'] ?? event.notification.body ?? 'Driver arriving...',
+            data['eta'] ?? '5 min',
+          );
+        }
       } else if (action == 'stop') {
         _stopService();
       }
@@ -236,6 +236,35 @@ class _MyAppState extends State<MyApp> {
         }
       }
     });
+  }
+
+  Future<void> _createRideActivityFromNotification(String title, String status, String eta) async {
+    try {
+      if (_latestActivityId == null) {
+        final id = await _live.createActivity(
+          _attributesType,
+          {
+            'matchName': title,
+            'teamAName': status,
+            'teamAScore': 0,
+            'teamBName': 'ETA',
+            'teamBScore': eta,
+            'updatedAt': DateTime.now().millisecondsSinceEpoch,
+          },
+        );
+        _latestActivityId = id;
+        debugPrint('Ride Live Activity created: $id');
+      } else {
+        await _live.updateActivity(_latestActivityId!, {
+          'teamAName': status,
+          'teamBScore': eta,
+          'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        });
+        debugPrint('Ride Live Activity updated: $_latestActivityId');
+      }
+    } catch (e) {
+      debugPrint('Ride Live Activity failed: $e');
+    }
   }
 
   Future<void> _ensureJobActivity(String company, String jobTitle, String description, String? imageUrl) async {
