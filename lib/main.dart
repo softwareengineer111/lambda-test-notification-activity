@@ -51,6 +51,8 @@ class _MyAppState extends State<MyApp> {
   String? _latestActivityId;
   // iOS-д ActivityKit-д тодорхойлсон ActivityAttributes нэр (extension-д яг энэ нэрээр байх ёстой)
   final String _attributesType = 'LiveActivitiesAppAttributes';
+  // Job Live Activity attributes type name (configure to your iOS extension)
+  final String _jobAttributesType = 'JobSearchAttributes';
 
   Future<void> _startService(String driver) async {
     // Ensure we have notification permission on Android 13+
@@ -129,29 +131,46 @@ class _MyAppState extends State<MyApp> {
 
       // Show custom notification instead
       final data = event.notification.additionalData ?? {};
-      final title = event.notification.title ?? (data['title'] ?? 'Ride');
-      final status = data['status'] ?? event.notification.body ?? 'Driver arriving...';
-      final eta = data['eta'] ?? '5 min';
+      final notificationType = data['type'] ?? 'ride';
 
-      debugPrint('📱 Showing custom notification: $title - $status');
-      platform.invokeMethod('showCustomNotification', {
-        'title': title,
-        'status': status,
-        'eta': eta,
-      }).then((result) {
-        debugPrint('✅ Custom notification shown: $result');
-      }).catchError((error) {
-        debugPrint('❌ Failed to show custom notification: $error');
-      });
+      if (notificationType == 'job') {
+        // Job notification
+        final company = data['company'] ?? event.notification.title ?? 'Company';
+        final jobTitle = data['jobTitle'] ?? event.notification.body ?? 'Job Opening';
+        final description = data['description'] ?? 'Албан тушаал зарлагдлаа';
+        final jobUrl = data['jobUrl'];
+        final imageUrl = data['imageUrl'];
 
-      // Handle action
-      final action = data['action'];
-      if (action == 'start') {
-        _startService(data['driver'] ?? 'Unknown');
-      } else if (action == 'update') {
-        _updateService(data['status'] ?? status, data['eta'] ?? eta);
-      } else if (action == 'stop') {
-        _stopService();
+        debugPrint('💼 Showing job notification: $company - $jobTitle');
+        platform.invokeMethod('showJobNotification', {
+          'company': company,
+          'jobTitle': jobTitle,
+          'description': description,
+          'jobUrl': jobUrl,
+          'imageUrl': imageUrl,
+        }).then((result) {
+          debugPrint('✅ Job notification shown: $result');
+          // Also reflect this via Live Activity (iOS) when in foreground
+          _ensureJobActivity(company, jobTitle, description, imageUrl);
+        }).catchError((error) {
+          debugPrint('❌ Failed to show job notification: $error');
+        });
+      } else {
+        // Ride notification
+        final title = event.notification.title ?? (data['title'] ?? 'Ride');
+        final status = data['status'] ?? event.notification.body ?? 'Driver arriving...';
+        final eta = data['eta'] ?? '5 min';
+
+        debugPrint('📱 Showing custom notification: $title - $status');
+        platform.invokeMethod('showCustomNotification', {
+          'title': title,
+          'status': status,
+          'eta': eta,
+        }).then((result) {
+          debugPrint('✅ Custom notification shown: $result');
+        }).catchError((error) {
+          debugPrint('❌ Failed to show custom notification: $error');
+        });
       }
     });
     OneSignal.Notifications.addClickListener((event) {
@@ -217,6 +236,37 @@ class _MyAppState extends State<MyApp> {
         }
       }
     });
+  }
+
+  Future<void> _ensureJobActivity(String company, String jobTitle, String description, String? imageUrl) async {
+    try {
+      // If an activity already exists, update; else create a new one
+      if (_latestActivityId == null) {
+        final id = await _live.createActivity(
+          _jobAttributesType,
+          {
+            'company': company,
+            'jobTitle': jobTitle,
+            'description': description,
+            if (imageUrl != null) 'imageUrl': imageUrl,
+            'postedAt': DateTime.now().millisecondsSinceEpoch,
+          },
+        );
+        _latestActivityId = id;
+        debugPrint('Job Live Activity created: $id');
+      } else {
+        await _live.updateActivity(_latestActivityId!, {
+          'company': company,
+          'jobTitle': jobTitle,
+          'description': description,
+          if (imageUrl != null) 'imageUrl': imageUrl,
+          'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        });
+        debugPrint('Job Live Activity updated: $_latestActivityId');
+      }
+    } catch (e) {
+      debugPrint('Job Live Activity ensure failed: $e');
+    }
   }
 
   Future<void> _initLiveActivities() async {

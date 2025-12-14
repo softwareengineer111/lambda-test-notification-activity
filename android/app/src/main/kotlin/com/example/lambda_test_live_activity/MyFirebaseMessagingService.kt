@@ -26,76 +26,83 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
-        // Ensure the notification channel exists on Android O+
-        // createChannel() is called in onCreate so channel exists before messages arrive
+        
         try {
-            Log.d(TAG, "onMessageReceived: ${message.data}")
-
-            val title = message.notification?.title ?: message.data["title"] ?: "Ride"
-            val text = message.notification?.body ?: message.data["text"] ?: message.data["eta"] ?: "Updating..."
-
-            // Build RemoteViews similar to ForegroundNotificationService
-            val collapsedView = RemoteViews(packageName, R.layout.notification_small)
-            collapsedView.setTextViewText(R.id.notif_title, title)
-            collapsedView.setTextViewText(R.id.notif_text, text)
-
-            val expandedView = RemoteViews(packageName, R.layout.notification_big)
-            expandedView.setTextViewText(R.id.notif_big_title, title)
-            expandedView.setTextViewText(R.id.notif_big_text, text)
-            expandedView.setTextViewText(R.id.notif_eta, text)
-
-            // Base content intent to open the app when tapping the notification
-            val contentIntent = Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            Log.d(TAG, "=== FCM Message Received ===")
+            Log.d(TAG, "From: ${message.from}")
+            Log.d(TAG, "Data: ${message.data}")
+            Log.d(TAG, "Notification: ${message.notification?.title} - ${message.notification?.body}")
+            
+            // Check if this is from OneSignal - they use sender ID format or include specific keys
+            val from = message.from ?: ""
+            val isOneSignal = from.contains("onesignal") || 
+                              message.data.containsKey("custom") || 
+                              message.data.containsKey("i") ||  // OneSignal notification ID
+                              message.data.containsKey("google.delivered_priority")
+            
+            // For OneSignal or any push notification, always show custom notification
+            Log.d(TAG, "Showing custom notification (OneSignal: $isOneSignal)")
+            
+            // Parse notification data - handle both OneSignal format and standard format
+            var title = message.notification?.title ?: message.data["title"] ?: "Ride"
+            var body = message.notification?.body ?: message.data["alert"] ?: message.data["body"] ?: "Driver arriving..."
+            
+            // Check notification type first (before parsing OneSignal custom data)
+            var notificationType = message.data["type"] ?: "ride"
+            
+            // OneSignal stores additional data in "custom" JSON string
+            val customJson = message.data["custom"]
+            if (customJson != null) {
+                try {
+                    val customData = org.json.JSONObject(customJson)
+                    val additionalData = customData.optJSONObject("a")
+                    if (additionalData != null) {
+                        // Check type from custom data
+                        notificationType = additionalData.optString("type", notificationType)
+                        Log.d(TAG, "OneSignal additionalData type: $notificationType")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing OneSignal custom data", e)
+                }
             }
-
-            val immFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
-            val updateFlag = PendingIntent.FLAG_UPDATE_CURRENT
-
-            val contentPending = PendingIntent.getActivity(this, 0, contentIntent, immFlag)
-
-            // Button intents (unique requestCodes so extras don't get mixed). Use UPDATE_CURRENT so extras are delivered.
-            val callIntent = Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra("notif_action", "call")
+            
+            Log.d(TAG, "Notification type: $notificationType")
+            
+            if (notificationType == "job") {
+                // Parse job notification data from custom JSON if available
+                var company = message.data["company"] ?: title
+                var jobTitle = message.data["jobTitle"] ?: body
+                var description = message.data["description"] ?: "Ажлын байр нээгдлээ"
+                var jobUrl = message.data["jobUrl"]
+                var imageUrl = message.data["imageUrl"]
+                
+                // Override with OneSignal custom data if available
+                if (customJson != null) {
+                    try {
+                        val customData = org.json.JSONObject(customJson)
+                        val additionalData = customData.optJSONObject("a")
+                        if (additionalData != null) {
+                            company = additionalData.optString("company", company)
+                            jobTitle = additionalData.optString("jobTitle", jobTitle)
+                            description = additionalData.optString("description", description)
+                            jobUrl = additionalData.optString("jobUrl", jobUrl)
+                            imageUrl = additionalData.optString("imageUrl", imageUrl)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing job data from custom", e)
+                    }
+                }
+                
+                Log.d(TAG, "🔔 Showing JOB notification: company=$company, jobTitle=$jobTitle, imageUrl=$imageUrl")
+                JobNotificationHelper.show(applicationContext, company, jobTitle, description, jobUrl, imageUrl)
+            } else {
+                // Ride notification (fallback)
+                val status = message.data["status"] ?: body
+                val eta = message.data["eta"] ?: "5 min"
+                
+                Log.d(TAG, "Showing custom notification: title=$title, status=$status, eta=$eta")
+                RideNotificationHelper.show(applicationContext, title, status, eta)
             }
-            val callPending = PendingIntent.getActivity(this, 1, callIntent, immFlag or updateFlag)
-
-            val navIntent = Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra("notif_action", "navigate")
-            }
-            val navPending = PendingIntent.getActivity(this, 2, navIntent, immFlag or updateFlag)
-
-            val stopIntent = Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra("notif_action", "stop")
-            }
-            val stopPending = PendingIntent.getActivity(this, 3, stopIntent, immFlag or updateFlag)
-
-            val largeIcon = BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
-
-            val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_stat_notification)
-                .setContentIntent(contentPending)
-                .setLargeIcon(largeIcon)
-                .setOngoing(false)
-                .setOnlyAlertOnce(true)
-                .setColor(ContextCompat.getColor(this, android.R.color.holo_blue_dark))
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-                .setCustomContentView(collapsedView)
-                .setCustomBigContentView(expandedView)
-
-            builder.setProgress(0, 0, true)
-
-            // Wire the buttons to pending intents on the expanded view (RemoteViews)
-            expandedView.setOnClickPendingIntent(R.id.action_call, callPending)
-            expandedView.setOnClickPendingIntent(R.id.action_navigate, navPending)
-            expandedView.setOnClickPendingIntent(R.id.action_stop, stopPending)
-
-            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            manager.notify(NOTIF_ID, builder.build())
 
         } catch (e: Exception) {
             Log.e(TAG, "Failed to show notification from FCM: ", e)

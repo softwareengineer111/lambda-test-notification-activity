@@ -52,6 +52,16 @@ class MainActivity: FlutterActivity() {
                     RideNotificationHelper.show(applicationContext, title, status, eta)
                     result.success(true)
                 }
+                "showJobNotification" -> {
+                    val args = call.arguments as? Map<String, String>
+                    val company = args?.get("company") ?: "Company"
+                    val jobTitle = args?.get("jobTitle") ?: "Job Opening"
+                    val description = args?.get("description") ?: "New position available"
+                    val jobUrl = args?.get("jobUrl")
+                    val imageUrl = args?.get("imageUrl")
+                    JobNotificationHelper.show(applicationContext, company, jobTitle, description, jobUrl, imageUrl)
+                    result.success(true)
+                }
                 else -> result.notImplemented()
             }
         }

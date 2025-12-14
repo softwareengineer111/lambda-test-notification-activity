@@ -1,6 +1,7 @@
 package com.example.lambda_test_live_activity
 
 import android.app.Application
+import android.util.Log
 import com.onesignal.OneSignal
 import com.onesignal.debug.LogLevel
 import com.onesignal.notifications.INotificationLifecycleListener
@@ -15,9 +16,11 @@ class MyApplication : Application() {
         OneSignal.Debug.logLevel = LogLevel.VERBOSE
         OneSignal.initWithContext(this, "be13a59a-95c4-43c5-b104-43d3b3f1921d")
         
-        // Set notification will show in foreground handler
+        // Handle notifications in ALL states (foreground + background)
         OneSignal.Notifications.addForegroundLifecycleListener(object : INotificationLifecycleListener {
             override fun onWillDisplay(event: INotificationWillDisplayEvent) {
+                Log.d("MyApplication", "Foreground notification intercepted")
+                
                 // Get notification data
                 val notification = event.notification
                 val additionalData = notification.additionalData
@@ -34,5 +37,9 @@ class MyApplication : Application() {
                 event.preventDefault()
             }
         })
+        
+        // Note: Background notification handling is done via MyFirebaseMessagingService
+        // which intercepts OneSignal FCM messages and shows custom notifications
+        Log.d("MyApplication", "OneSignal initialized - background notifications handled by FCM service")
     }
 }

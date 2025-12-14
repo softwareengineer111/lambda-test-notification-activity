@@ -85,15 +85,15 @@ class ForegroundNotificationService : Service() {
         val largeIcon = BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
 
         // Custom RemoteViews for collapsed and expanded notification
-        val collapsedView = RemoteViews(packageName, R.layout.notification_small)
+        val collapsedView = RemoteViews(packageName, R.layout.notification_ride_small)
         collapsedView.setTextViewText(R.id.notif_title, title)
         collapsedView.setTextViewText(R.id.notif_text, text)
 
-        val expandedView = RemoteViews(packageName, R.layout.notification_big)
-    expandedView.setTextViewText(R.id.notif_big_title, title)
-    expandedView.setTextViewText(R.id.notif_big_text, text)
-    // Use the text field as ETA display when available (caller can pass ETA via text)
-    expandedView.setTextViewText(R.id.notif_eta, text)
+        val expandedView = RemoteViews(packageName, R.layout.notification_ride_big)
+        expandedView.setTextViewText(R.id.notif_big_title, title)
+        expandedView.setTextViewText(R.id.notif_big_text, text)
+        // Use the text field as ETA display when available (caller can pass ETA via text)
+        expandedView.setTextViewText(R.id.notif_eta, text)
 
         // Action intents for buttons (call, navigate, stop)
             // Create intents that open MainActivity with an action extra so Dart can handle them

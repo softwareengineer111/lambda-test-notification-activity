@@ -45,17 +45,28 @@ class _SendNotificationScreenState extends State<SendNotificationScreen> {
       final driver = _driverController.text.isEmpty ? 'Driver' : _driverController.text;
 
       // Build OneSignal notification payload
+      // NOTE: OneSignal rejects notifications with completely missing/empty contents.
+      // To send data-only while letting FCM deliver to our service, include a minimal blank content
+      // and set content_available=true. This prevents OneSignal's UI from showing while still delivering.
       final payload = {
         'app_id': _oneSignalAppId,
         'included_segments': ['All'], // Send to all subscribed users
+        // Optional headings if provided
         'headings': {'en': title},
-        'contents': {'en': status},
+        // Minimal content to satisfy OneSignal REST validation; use a single space when status is empty
+        'contents': {'en': (status.isEmpty) ? ' ' : status},
+        // Ensure Android data-only delivery
+        'content_available': true,
+        'mutable_content': true,
+        // Custom data for job notification
         'data': {
+          'type': 'job',
+          'company': title,
+          'jobTitle': status,
+          'description': 'Албан тушаал зарлагдлаа',
+          'jobUrl': 'https://example.com/jobs/123',
+          'imageUrl': 'https://picsum.photos/200', // Test image
           'action': _selectedAction,
-          'status': status,
-          'eta': eta,
-          'driver': driver,
-          'title': title,
         },
       };
 
