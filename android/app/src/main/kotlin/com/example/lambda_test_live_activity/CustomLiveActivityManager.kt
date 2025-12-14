@@ -55,29 +55,26 @@ class CustomLiveActivityManager(context: Context) : LiveActivityManager(context)
         }
     }
 
-    // Update RemoteViews with provided data
-    private suspend fun updateRemoteViews(
-        team1Name: String,
-        team1Score: Int,
-        team2Name: String,
-        team2Score: Int,
-        timestamp: Long,
-        team1ImageUrl: String?,
-        team2ImageUrl: String?,
+    // Update RemoteViews with job searching data
+    private suspend fun updateRemoteViewsForJob(
+        company: String,
+        jobTitle: String,
+        description: String,
+        postedAtMillis: Long,
+        imageUrl: String?,
     ) {
-        remoteViews.setTextViewText(R.id.team1_name, team1Name)
-        remoteViews.setTextViewText(R.id.team2_name, team2Name)
-        remoteViews.setTextViewText(R.id.score, "$team1Score : $team2Score")
+        // Map existing views: company, title, description
+        remoteViews.setTextViewText(R.id.team1_name, company)
+        remoteViews.setTextViewText(R.id.team2_name, jobTitle)
+        remoteViews.setTextViewText(R.id.score, description)
 
         val elapsedRealtime = android.os.SystemClock.elapsedRealtime()
         val currentTimeMillis = System.currentTimeMillis()
-        val base = elapsedRealtime - (currentTimeMillis - timestamp)
+        val base = elapsedRealtime - (currentTimeMillis - postedAtMillis)
         remoteViews.setChronometer(R.id.match_time, base, null, true)
 
-        val team1Image = if (!team1ImageUrl.isNullOrEmpty()) loadImageBitmap(team1ImageUrl) else null
-        val team2Image = if (!team2ImageUrl.isNullOrEmpty()) loadImageBitmap(team2ImageUrl) else null
-        team1Image?.let { remoteViews.setImageViewBitmap(R.id.team1_image_placeholder, it) }
-        team2Image?.let { remoteViews.setImageViewBitmap(R.id.team2_image_placeholder, it) }
+        val logo = if (!imageUrl.isNullOrEmpty()) loadImageBitmap(imageUrl) else null
+        logo?.let { remoteViews.setImageViewBitmap(R.id.team1_image_placeholder, it) }
     }
 
     override suspend fun buildNotification(
@@ -85,33 +82,24 @@ class CustomLiveActivityManager(context: Context) : LiveActivityManager(context)
         event: String,
         data: Map<String, Any>
     ): Notification {
-        val matchName = data["matchName"] as? String ?: "Match"
-        val timestamp = (data["matchStartDate"] as? Number)?.toLong() ?: System.currentTimeMillis()
-        val team1Name = data["teamAName"] as? String ?: "Team A"
-        val team1Score = (data["teamAScore"] as? Number)?.toInt() ?: 0
-        val team2Name = data["teamBName"] as? String ?: "Team B"
-        val team2Score = (data["teamBScore"] as? Number)?.toInt() ?: 0
+        // Prefer job searching fields
+        val company = data["company"] as? String ?: (data["matchName"] as? String ?: "Company")
+        val jobTitle = data["jobTitle"] as? String ?: (data["teamBName"] as? String ?: "Job Title")
+        val description = data["description"] as? String ?: "Албан тушаал зарлагдлаа"
+        val postedAt = (data["postedAt"] as? Number)?.toLong()
+            ?: (data["matchStartDate"] as? Number)?.toLong()
+            ?: System.currentTimeMillis()
+        val imageUrl = data["imageUrl"] as? String
 
-        val team1ImageUrl = if (event == "update") null else data["teamAImageUrl"] as? String
-        val team2ImageUrl = if (event == "update") null else data["teamBImageUrl"] as? String
-
-        // Update views
-        updateRemoteViews(
-            team1Name,
-            team1Score,
-            team2Name,
-            team2Score,
-            timestamp,
-            team1ImageUrl,
-            team2ImageUrl,
-        )
+        // Update views for job
+        updateRemoteViewsForJob(company, jobTitle, description, postedAt, imageUrl)
 
         return notification
             .setSmallIcon(R.drawable.ic_stat_notification)
             .setOngoing(true)
-            .setContentTitle("$team1Name vs $team2Name")
+            .setContentTitle(company)
             .setContentIntent(pendingIntent)
-            .setContentText("$team1Score : $team2Score")
+            .setContentText(jobTitle)
             .setStyle(Notification.DecoratedCustomViewStyle())
             .setCustomContentView(remoteViews)
             .setCustomBigContentView(remoteViews)
