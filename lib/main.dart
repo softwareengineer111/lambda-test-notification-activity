@@ -6,6 +6,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:live_activities/live_activities.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'screens/send_notification_screen.dart';
+import 'screens/job_detail_screen.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -45,6 +47,7 @@ class _MyAppState extends State<MyApp> {
   static const platform = MethodChannel('com.example.foreground/service');
   // Removed ride status/eta; focusing on Live Activities only
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   final LiveActivities _live = LiveActivities();
   String? _latestActivityId;
   // iOS-д ActivityKit-д тодорхойлсон ActivityAttributes нэр (extension-д яг энэ нэрээр байх ёстой)
@@ -64,9 +67,65 @@ class _MyAppState extends State<MyApp> {
 
   // Removed ride start/update/stop service methods
 
+  void _setupMethodChannel() {
+    platform.setMethodCallHandler((call) async {
+      if (call.method == 'openJobDetail') {
+        final args = call.arguments as Map;
+        final company = args['company'] as String;
+        final jobTitle = args['jobTitle'] as String;
+        final description = args['description'] as String? ?? 'Ажлын байрный тайлбар';
+        final companyImageUrl = args['companyImageUrl'] as String?;
+        final jobUrl = args['jobUrl'] as String?;
+
+        debugPrint('📱 Opening job detail: $company - $jobTitle');
+
+        // Get the navigator context
+        final context = _scaffoldMessengerKey.currentContext;
+        if (context != null) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => JobDetailScreen(
+                company: company,
+                jobTitle: jobTitle,
+                description: description,
+                companyImageUrl: companyImageUrl,
+                jobUrl: jobUrl,
+              ),
+            ),
+          );
+        }
+      } else if (call.method == 'openJobDetailById') {
+        final args = call.arguments as Map;
+        final jobId = args['jobId'] as String;
+
+        debugPrint('📱 Opening job by ID: $jobId');
+
+        // TODO: Fetch job details from API using jobId
+        // For now, show a placeholder screen
+        final context = _scaffoldMessengerKey.currentContext;
+        if (context != null) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => JobDetailScreen(
+                company: 'Ламбда ХХК',
+                jobTitle: 'Мобайл аппликейшн хөгжүүлэгч #$jobId',
+                description: 'iOS болон Android аппликейшн хөгжүүлэх. Flutter ашиглан cross-platform апп хийх. Firebase integration. RESTful API холбох.',
+                companyImageUrl: 'https://picsum.photos/200',
+                jobUrl: 'lambda://job/$jobId',
+              ),
+            ),
+          );
+        }
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+
+    // Setup MethodChannel for native to Flutter communication
+    _setupMethodChannel();
 
     // OneSignal init: replace with your actual OneSignal App ID
     OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
@@ -301,6 +360,7 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'Flutter + Native Foreground',
       scaffoldMessengerKey: _scaffoldMessengerKey,
+      navigatorKey: _navigatorKey,
       home: Scaffold(
         appBar: AppBar(title: const Text('Uber-like Notification (Android)')),
         body: Padding(
@@ -327,6 +387,41 @@ class _MyAppState extends State<MyApp> {
               ),
               const Divider(height: 32),
               const Text('OneSignal Push Notifications', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () {
+                  _navigatorKey.currentState?.push(
+                    MaterialPageRoute(builder: (context) => const SendNotificationScreen()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Send Test Notification'),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  // Direct test of JobDetailScreen
+                  _navigatorKey.currentState?.push(
+                    MaterialPageRoute(
+                      builder: (context) => const JobDetailScreen(
+                        company: 'Test Company',
+                        jobTitle: 'Test Job via Deep Link',
+                        description: 'Testing job detail screen navigation',
+                        companyImageUrl: 'https://picsum.photos/200',
+                        jobUrl: 'lambda://job/999',
+                      ),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('🧪 Test Job Detail Screen'),
+              ),
             ],
           ),
         ),

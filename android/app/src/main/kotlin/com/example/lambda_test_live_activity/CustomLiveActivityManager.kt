@@ -110,24 +110,42 @@ class CustomLiveActivityManager(context: Context) : LiveActivityManager(context)
         // Update views for job
         updateRemoteViewsForJob(company, jobTitle, description, postedAt, companyImageUrl)
 
-        // Create clickable PendingIntent with job URL
+        // Create clickable PendingIntent with all job data
+        // Important: Set action to prevent deep link handler from intercepting
         val clickIntent = Intent(appContext, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("job_url", jobUrl)
+            action = "com.example.lambda_test_live_activity.OPEN_JOB_DETAIL"
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("from_live_activity", true)
+            putExtra("company", company)
+            putExtra("jobTitle", jobTitle)
+            putExtra("description", description)
+            putExtra("companyImageUrl", companyImageUrl)
+            putExtra("job_url", jobUrl)
         }
+        
+        android.util.Log.d("CustomLiveActivity", "🔨 Creating PendingIntent with:")
+        android.util.Log.d("CustomLiveActivity", "  company: $company")
+        android.util.Log.d("CustomLiveActivity", "  jobTitle: $jobTitle")
+        android.util.Log.d("CustomLiveActivity", "  action: ${clickIntent.action}")
+        
         val clickPendingIntent = PendingIntent.getActivity(
             appContext,
-            200,
+            System.currentTimeMillis().toInt(), // Unique request code to ensure update
             clickIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        
+        android.util.Log.d("CustomLiveActivity", "✅ PendingIntent created")
+        
+        // Make the entire RemoteViews clickable
+        remoteViews.setOnClickPendingIntent(R.id.live_activity_root, clickPendingIntent)
+        android.util.Log.d("CustomLiveActivity", "✅ Set click listener on RemoteViews")
 
         return notification
             .setSmallIcon(R.drawable.ic_stat_notification)
             .setOngoing(true)
             .setContentTitle(company)
-            .setContentIntent(clickPendingIntent)
+            .setContentIntent(clickPendingIntent) // Also set as content intent
             .setContentText(jobTitle)
             .setStyle(Notification.DecoratedCustomViewStyle())
             .setCustomContentView(remoteViews)

@@ -12,9 +12,9 @@ class SendNotificationScreen extends StatefulWidget {
 class _SendNotificationScreenState extends State<SendNotificationScreen> {
   final _companyController = TextEditingController(text: 'Ламбда ХХК');
   final _jobTitleController = TextEditingController(text: 'Мобайл аппликейшн хөгжүүлэгч');
-  final _descriptionController = TextEditingController(text: 'iOS болон Android аппликейшн хөгжүүлэх');
+  final _descriptionController = TextEditingController(text: 'iOS болон Android аппликейшн хөгжүүлэх. Flutter ашиглан cross-platform апп хийх. Firebase integration. RESTful API холбох. UI/UX дизайн хэрэгжүүлэх.');
   final _imageUrlController = TextEditingController(text: 'https://picsum.photos/200');
-  final _jobUrlController = TextEditingController(text: 'https://lambda.mn/jobs/mobile-developer');
+  final _jobUrlController = TextEditingController(text: 'lambda://job/123');
   String _selectedAction = 'update';
   bool _sending = false;
 
@@ -153,9 +153,10 @@ class _SendNotificationScreenState extends State<SendNotificationScreen> {
             TextField(
               controller: _jobUrlController,
               decoration: const InputDecoration(
-                labelText: 'Job Application URL',
-                hintText: 'https://lambda.mn/jobs/mobile-developer',
+                labelText: 'Job URL (Use scheme: lambda://job/ID)',
+                hintText: 'lambda://job/123',
                 border: OutlineInputBorder(),
+                helperText: 'Custom scheme opens in-app, https:// opens browser',
               ),
               keyboardType: TextInputType.url,
             ),
