@@ -19,37 +19,24 @@ class MainActivity: FlutterActivity() {
         methodChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "startService" -> {
-                    val title = call.argument<String>("title") ?: "Ride"
-                    val text = call.argument<String>("text") ?: "Starting..."
-                    val intent = Intent(context, ForegroundNotificationService::class.java)
-                    intent.action = ForegroundNotificationService.ACTION_START
-                    intent.putExtra(ForegroundNotificationService.EXTRA_TITLE, title)
-                    intent.putExtra(ForegroundNotificationService.EXTRA_TEXT, text)
-                    context.startForegroundService(intent)
-                    result.success("started")
+                    // Deprecated: ride foreground service removed
+                    result.success("ignored")
                 }
                 "updateService" -> {
-                    val title = call.argument<String>("title") ?: "Ride"
-                    val text = call.argument<String>("text") ?: "Update"
-                    val intent = Intent(context, ForegroundNotificationService::class.java)
-                    intent.action = ForegroundNotificationService.ACTION_UPDATE
-                    intent.putExtra(ForegroundNotificationService.EXTRA_TITLE, title)
-                    intent.putExtra(ForegroundNotificationService.EXTRA_TEXT, text)
-                    context.startForegroundService(intent)
-                    result.success("updated")
+                    // Deprecated: ride foreground service removed
+                    result.success("ignored")
                 }
                 "stopService" -> {
-                    val intent = Intent(context, ForegroundNotificationService::class.java)
-                    intent.action = ForegroundNotificationService.ACTION_STOP
-                    context.startService(intent)
-                    result.success("stopped")
+                    // Deprecated: ride foreground service removed
+                    result.success("ignored")
                 }
                 "showCustomNotification" -> {
                     val args = call.arguments as? Map<String, String>
                     val title = args?.get("title") ?: "Ride"
                     val status = args?.get("status") ?: args?.get("text") ?: "Driver arriving..."
                     val eta = args?.get("eta") ?: "5 min"
-                    RideNotificationHelper.show(applicationContext, title, status, eta)
+                    // Deprecated: ride notification removed
+                    // RideNotificationHelper.show(applicationContext, title, status, eta)
                     result.success(true)
                 }
                 "showJobNotification" -> {

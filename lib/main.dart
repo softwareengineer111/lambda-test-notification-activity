@@ -44,8 +44,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   static const platform = MethodChannel('com.example.foreground/service');
-  String _status = 'No ride';
-  String _eta = '';
+  // Removed ride status/eta; focusing on Live Activities only
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
   final LiveActivities _live = LiveActivities();
   String? _latestActivityId;
@@ -53,25 +52,6 @@ class _MyAppState extends State<MyApp> {
   final String _attributesType = 'LiveActivitiesAppAttributes';
   // Job Live Activity attributes type name (configure to your iOS extension)
   final String _jobAttributesType = 'JobSearchAttributes';
-
-  Future<void> _startService(String driver) async {
-    // Ensure we have notification permission on Android 13+
-    try {
-      if (await _ensureNotificationPermission() == false) {
-        print('Notification permission denied');
-        return;
-      }
-
-      final res = await platform.invokeMethod('startService', {'title': 'Ride with $driver', 'text': 'Driver is arriving... ETA 5 min'});
-      print('startService: \$res');
-      setState(() {
-        _status = 'Driver is arriving';
-        _eta = '5 min';
-      });
-    } on PlatformException catch (e) {
-      print('Failed to start service: \$e');
-    }
-  }
 
   Future<bool> _ensureNotificationPermission() async {
     // On Android pre-13 the permission is granted at install-time.
@@ -83,31 +63,7 @@ class _MyAppState extends State<MyApp> {
     return status.isGranted;
   }
 
-  Future<void> _updateService(String status, String eta) async {
-    try {
-      final res = await platform.invokeMethod('updateService', {'title': 'Ride Status: \$status', 'text': 'ETA: \$eta', 'status': status, 'eta': eta});
-      print('updateService: \$res');
-      setState(() {
-        _status = status;
-        _eta = eta;
-      });
-    } on PlatformException catch (e) {
-      print('Failed to update service: \$e');
-    }
-  }
-
-  Future<void> _stopService() async {
-    try {
-      final res = await platform.invokeMethod('stopService');
-      print('stopService: \$res');
-      setState(() {
-        _status = 'No ride';
-        _eta = '';
-      });
-    } on PlatformException catch (e) {
-      print('Failed to stop service: \$e');
-    }
-  }
+  // Removed ride start/update/stop service methods
 
   @override
   void initState() {
@@ -143,14 +99,6 @@ class _MyAppState extends State<MyApp> {
 
         debugPrint('💼 Foreground job → Live Activity: $company - $jobTitle');
         _ensureJobActivity(company, jobTitle, description, imageUrl);
-      } else {
-        // Ride notification
-        final title = event.notification.title ?? (data['title'] ?? 'Ride');
-        final status = data['status'] ?? event.notification.body ?? 'Driver arriving...';
-        final eta = data['eta'] ?? '5 min';
-
-        debugPrint('🚗 Foreground ride → Live Activity: $title - $status');
-        _createRideActivityFromNotification(title, status, eta);
       }
     });
     OneSignal.Notifications.addClickListener((event) {
@@ -166,19 +114,11 @@ class _MyAppState extends State<MyApp> {
         final imageUrl = data['imageUrl'];
         debugPrint('👆 Click → Job Live Activity');
         _ensureJobActivity(company, jobTitle, description, imageUrl);
-      } else {
-        final title = event.notification.title ?? (data['title'] ?? 'Ride');
-        final status = data['status'] ?? event.notification.body ?? 'Driver arriving...';
-        final eta = data['eta'] ?? '5 min';
-        debugPrint('👆 Click → Ride Live Activity');
-        _createRideActivityFromNotification(title, status, eta);
       }
 
       // Handle action
       final action = data['action'];
-      if (action == 'start') {
-        _startService(data['driver'] ?? 'Unknown');
-      } else if (action == 'update') {
+      if (action == 'update') {
         // Also reflect updates through Live Activity
         if ((data['type'] ?? 'ride') == 'job') {
           _ensureJobActivity(
@@ -187,30 +127,21 @@ class _MyAppState extends State<MyApp> {
             data['description'] ?? 'Албан тушаал зарлагдлаа',
             data['imageUrl'],
           );
-        } else {
-          _createRideActivityFromNotification(
-            event.notification.title ?? (data['title'] ?? 'Ride'),
-            data['status'] ?? event.notification.body ?? 'Driver arriving...',
-            data['eta'] ?? '5 min',
-          );
         }
-      } else if (action == 'stop') {
-        _stopService();
       }
     });
 
     // Handle incoming FCM messages while app is in foreground
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('Message received: ${message.notification?.title}');
+      print('Message received (FG): ${message.notification?.title}');
       final data = message.data;
-
-      if (data['action'] == 'start') {
-        _startService(data['driver'] ?? 'Unknown');
-      } else if (data['action'] == 'update') {
-        _updateService(data['status'] ?? 'Updating...', data['eta'] ?? '...');
-      } else if (data['action'] == 'stop') {
-        _stopService();
-      }
+      // Foreground: reflect ONLY via Live Activities (job)
+      _ensureJobActivity(
+        data['company'] ?? message.notification?.title ?? 'Company',
+        data['jobTitle'] ?? message.notification?.body ?? 'Job Opening',
+        data['description'] ?? 'Албан тушаал зарлагдлаа',
+        data['imageUrl'],
+      );
     });
 
     // Print FCM device token for debugging
@@ -220,52 +151,25 @@ class _MyAppState extends State<MyApp> {
     _initLiveActivities();
 
     // Listen for native notification button actions forwarded via MethodChannel
-    const nativeChannel = MethodChannel('com.example.foreground/service');
-    nativeChannel.setMethodCallHandler((call) async {
-      if (call.method == 'onNotificationAction') {
-        final args = call.arguments as Map?;
-        final action = args != null ? args['action'] as String? : null;
-        print('Notification action from native: $action');
-        if (action == 'stop') {
-          await _stopService();
-        } else if (action == 'call') {
-          // Example: show a snackbar or handle call action
-          _scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(content: Text('Call action tapped')));
-        } else if (action == 'navigate') {
-          _scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(content: Text('Navigate action tapped')));
-        }
-      }
-    });
+    // const nativeChannel = MethodChannel('com.example.foreground/service');
+    // nativeChannel.setMethodCallHandler((call) async {
+    //   if (call.method == 'onNotificationAction') {
+    //     final args = call.arguments as Map?;
+    //     final action = args != null ? args['action'] as String? : null;
+    //     print('Notification action from native: $action');
+    //     if (action == 'stop') {
+    //       await _stopService();
+    //     } else if (action == 'call') {
+    //       // Example: show a snackbar or handle call action
+    //       _scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(content: Text('Call action tapped')));
+    //     } else if (action == 'navigate') {
+    //       _scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(content: Text('Navigate action tapped')));
+    //     }
+    //   }
+    // });
   }
 
-  Future<void> _createRideActivityFromNotification(String title, String status, String eta) async {
-    try {
-      if (_latestActivityId == null) {
-        final id = await _live.createActivity(
-          _attributesType,
-          {
-            'matchName': title,
-            'teamAName': status,
-            'teamAScore': 0,
-            'teamBName': 'ETA',
-            'teamBScore': eta,
-            'updatedAt': DateTime.now().millisecondsSinceEpoch,
-          },
-        );
-        _latestActivityId = id;
-        debugPrint('Ride Live Activity created: $id');
-      } else {
-        await _live.updateActivity(_latestActivityId!, {
-          'teamAName': status,
-          'teamBScore': eta,
-          'updatedAt': DateTime.now().millisecondsSinceEpoch,
-        });
-        debugPrint('Ride Live Activity updated: $_latestActivityId');
-      }
-    } catch (e) {
-      debugPrint('Ride Live Activity failed: $e');
-    }
-  }
+  // Removed ride Live Activity helper; focusing on job Live Activity only
 
   Future<void> _ensureJobActivity(String company, String jobTitle, String description, String? imageUrl) async {
     try {
@@ -400,31 +304,8 @@ class _MyAppState extends State<MyApp> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Status: \$_status', style: const TextStyle(fontSize: 18)),
-              const SizedBox(height: 8),
-              Text('ETA: \$_eta', style: const TextStyle(fontSize: 16)),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () => _startService('Ariun'),
-                child: const Text('Start Ride (native service)'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () => _updateService('Driver Arrived', '0 min'),
-                child: const Text('Update: Arrived'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () => _updateService('On Trip', '15 min'),
-                child: const Text('Update: On Trip'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _stopService,
-                child: const Text('Stop Ride (stop service)'),
-              ),
-              const Divider(height: 32),
               const Text('Live Activities (plugin)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Divider(height: 32),
               const SizedBox(height: 8),
               ElevatedButton(
                 onPressed: _createLiveActivity,
