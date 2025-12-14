@@ -6,7 +6,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:live_activities/live_activities.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
-import 'screens/send_notification_screen.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -323,20 +322,6 @@ class _MyAppState extends State<MyApp> {
               ),
               const Divider(height: 32),
               const Text('OneSignal Push Notifications', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const SendNotificationScreen()),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Send Test Notification'),
-              ),
             ],
           ),
         ),
