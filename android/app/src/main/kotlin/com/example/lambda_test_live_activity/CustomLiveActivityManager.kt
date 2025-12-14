@@ -16,15 +16,6 @@ import com.example.live_activities.LiveActivityManager
 class CustomLiveActivityManager(context: Context) : LiveActivityManager(context) {
     private val appContext: Context = context.applicationContext
 
-    private val pendingIntent = PendingIntent.getActivity(
-        appContext,
-        200,
-        Intent(appContext, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-        },
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    )
-
     private val remoteViews = RemoteViews(
         appContext.packageName,
         R.layout.live_activity
@@ -106,22 +97,37 @@ class CustomLiveActivityManager(context: Context) : LiveActivityManager(context)
             ?: (data["matchStartDate"] as? Number)?.toLong()
             ?: System.currentTimeMillis()
         val companyImageUrl = data["companyImageUrl"] as? String ?: data["imageUrl"] as? String
+        val jobUrl = data["jobUrl"] as? String
 
         android.util.Log.d("CustomLiveActivity", "📋 Extracted values:")
         android.util.Log.d("CustomLiveActivity", "  company: $company")
         android.util.Log.d("CustomLiveActivity", "  jobTitle: $jobTitle")
         android.util.Log.d("CustomLiveActivity", "  description: $description")
         android.util.Log.d("CustomLiveActivity", "  companyImageUrl: $companyImageUrl")
+        android.util.Log.d("CustomLiveActivity", "  jobUrl: $jobUrl")
         android.util.Log.d("CustomLiveActivity", "  postedAt: $postedAt")
 
         // Update views for job
         updateRemoteViewsForJob(company, jobTitle, description, postedAt, companyImageUrl)
 
+        // Create clickable PendingIntent with job URL
+        val clickIntent = Intent(appContext, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("job_url", jobUrl)
+            putExtra("from_live_activity", true)
+        }
+        val clickPendingIntent = PendingIntent.getActivity(
+            appContext,
+            200,
+            clickIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         return notification
             .setSmallIcon(R.drawable.ic_stat_notification)
             .setOngoing(true)
             .setContentTitle(company)
-            .setContentIntent(pendingIntent)
+            .setContentIntent(clickPendingIntent)
             .setContentText(jobTitle)
             .setStyle(Notification.DecoratedCustomViewStyle())
             .setCustomContentView(remoteViews)

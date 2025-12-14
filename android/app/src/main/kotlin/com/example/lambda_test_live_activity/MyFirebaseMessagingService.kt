@@ -93,6 +93,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             Log.d(TAG, "  company: $company")
                             Log.d(TAG, "  jobTitle: $jobTitle")
                             Log.d(TAG, "  description: $description")
+                            Log.d(TAG, "  jobUrl: $jobUrl")
                             Log.d(TAG, "  companyImageUrl: $companyImageUrl")
                         }
                     } catch (e: Exception) {
@@ -100,7 +101,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     }
                 }
                 
-                Log.d(TAG, "🔔 Showing JOB notification: company=$company, jobTitle=$jobTitle, companyImageUrl=$companyImageUrl")
+                Log.d(TAG, "🔔 Showing JOB notification: company=$company, jobTitle=$jobTitle, jobUrl=$jobUrl, companyImageUrl=$companyImageUrl")
                 JobNotificationHelper.show(applicationContext, company, jobTitle, description, jobUrl, companyImageUrl)
             } else {
                 // Ride notification (fallback)

@@ -97,7 +97,7 @@ class _MyAppState extends State<MyApp> {
         final companyImageUrl = data['companyImageUrl'] ?? data['imageUrl'];
 
         debugPrint('💼 Foreground job → Live Activity: $company - $jobTitle');
-        _ensureJobActivity(company, jobTitle, description, companyImageUrl);
+        _ensureJobActivity(company, jobTitle, description, companyImageUrl, jobUrl);
       }
     });
     OneSignal.Notifications.addClickListener((event) {
@@ -111,8 +111,9 @@ class _MyAppState extends State<MyApp> {
         final jobTitle = data['jobTitle'] ?? event.notification.body ?? 'Job Opening';
         final description = data['description'] ?? 'Албан тушаал зарлагдлаа';
         final companyImageUrl = data['companyImageUrl'] ?? data['imageUrl'];
+        final jobUrl = data['jobUrl'];
         debugPrint('👆 Click → Job Live Activity');
-        _ensureJobActivity(company, jobTitle, description, companyImageUrl);
+        _ensureJobActivity(company, jobTitle, description, companyImageUrl, jobUrl);
       }
 
       // Handle action
@@ -125,6 +126,7 @@ class _MyAppState extends State<MyApp> {
             data['jobTitle'] ?? event.notification.body ?? 'Job Opening',
             data['description'] ?? 'Албан тушаал зарлагдлаа',
             data['companyImageUrl'] ?? data['imageUrl'],
+            data['jobUrl'],
           );
         }
       }
@@ -140,6 +142,7 @@ class _MyAppState extends State<MyApp> {
         data['jobTitle'] ?? message.notification?.body ?? 'Job Opening',
         data['description'] ?? 'Албан тушаал зарлагдлаа',
         data['companyImageUrl'] ?? data['imageUrl'],
+        data['jobUrl'],
       );
     });
 
@@ -170,7 +173,7 @@ class _MyAppState extends State<MyApp> {
 
   // Removed ride Live Activity helper; focusing on job Live Activity only
 
-  Future<void> _ensureJobActivity(String company, String jobTitle, String description, String? companyImageUrl) async {
+  Future<void> _ensureJobActivity(String company, String jobTitle, String description, String? companyImageUrl, String? jobUrl) async {
     try {
       // If an activity already exists, update; else create a new one
       if (_latestActivityId == null) {
@@ -181,6 +184,7 @@ class _MyAppState extends State<MyApp> {
             'jobTitle': jobTitle,
             'description': description,
             if (companyImageUrl != null) 'companyImageUrl': companyImageUrl,
+            if (jobUrl != null) 'jobUrl': jobUrl,
             'postedAt': DateTime.now().millisecondsSinceEpoch,
           },
         );
@@ -192,6 +196,7 @@ class _MyAppState extends State<MyApp> {
           'jobTitle': jobTitle,
           'description': description,
           if (companyImageUrl != null) 'companyImageUrl': companyImageUrl,
+          if (jobUrl != null) 'jobUrl': jobUrl,
           'updatedAt': DateTime.now().millisecondsSinceEpoch,
         });
         debugPrint('Job Live Activity updated: $_latestActivityId');

@@ -72,10 +72,27 @@ class MainActivity: FlutterActivity() {
                 pendingNotifAction = action
             }
         }
+        
+        // Handle Live Activity click with job URL
+        if (intent?.getBooleanExtra("from_live_activity", false) == true) {
+            val jobUrl = intent.getStringExtra("job_url")
+            if (jobUrl != null) {
+                android.util.Log.d("MainActivity", "🔗 Live Activity clicked with jobUrl: $jobUrl")
+                // Open URL in browser
+                try {
+                    val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(jobUrl))
+                    browserIntent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                    startActivity(browserIntent)
+                } catch (e: Exception) {
+                    android.util.Log.e("MainActivity", "Failed to open URL: $jobUrl", e)
+                }
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         handleNotificationIntent(intent)
     }
 
