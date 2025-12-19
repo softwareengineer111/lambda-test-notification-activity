@@ -1,333 +1,51 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:live_activities/live_activities.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
-
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-  print("🔥 Background message: ${message.notification?.title}");
-  print("🔥 Background message: ${message.notification?.body}");
-}
-
-Future<void> _requestNotificationPermission() async {
-  final status = await Permission.notification.request();
-  if (status.isGranted) {
-    print("✅ Notification permission granted");
-  } else {
-    print("❌ Notification permission denied");
-  }
-}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  // Request notification permission on Android 13+
-  await _requestNotificationPermission();
-
   runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
-  static const platform = MethodChannel('com.example.foreground/service');
-  // Removed ride status/eta; focusing on Live Activities only
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
-  final LiveActivities _live = LiveActivities();
-  String? _latestActivityId;
-  // iOS-д ActivityKit-д тодорхойлсон ActivityAttributes нэр (extension-д яг энэ нэрээр байх ёстой)
-  final String _attributesType = 'LiveActivitiesAppAttributes';
-  // Job Live Activity attributes type name (configure to your iOS extension)
-  final String _jobAttributesType = 'JobSearchAttributes';
 
-  Future<bool> _ensureNotificationPermission() async {
-    // On Android pre-13 the permission is granted at install-time.
-    if (!await Permission.notification.shouldShowRequestRationale && (await Permission.notification.status).isGranted) {
-      return true;
-    }
-
-    final status = await Permission.notification.request();
-    return status.isGranted;
-  }
-
-  // Removed ride start/update/stop service methods
+  // TODO: Replace with your OneSignal App ID
+  static const String _oneSignalAppId = 'be13a59a-95c4-43c5-b104-43d3b3f1921d';
 
   @override
   void initState() {
     super.initState();
 
-    // OneSignal init: replace with your actual OneSignal App ID
     OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
-    OneSignal.initialize('be13a59a-95c4-43c5-b104-43d3b3f1921d');
-    // Request user permission (Android 13+ / iOS)
+    OneSignal.initialize(_oneSignalAppId);
     OneSignal.Notifications.requestPermission(true);
-    // Log subscription state & playerId for testing
+
     OneSignal.User.pushSubscription.addObserver((state) {
-      debugPrint('OneSignal subscribed: ${state.current.optedIn}, playerId: ${state.current.id}');
+      debugPrint('OneSignal push optedIn=${state.current.optedIn} id=${state.current.id}');
     });
-    // Log initial state via v5 properties
-    debugPrint('OneSignal initial subscribed: ${OneSignal.User.pushSubscription.optedIn}, playerId: ${OneSignal.User.pushSubscription.id}');
-    OneSignal.Notifications.addForegroundWillDisplayListener((event) {
-      debugPrint('🔔 Foreground notification received: ${event.notification.title}');
-      // Prevent default OneSignal notification
-      event.preventDefault();
-
-      // Instead of native custom notification, reflect via Live Activity
-      final data = event.notification.additionalData ?? {};
-      final notificationType = data['type'] ?? 'ride';
-
-      if (notificationType == 'job') {
-        // Job notification
-        final company = data['company'] ?? event.notification.title ?? 'Company';
-        final jobTitle = data['jobTitle'] ?? event.notification.body ?? 'Job Opening';
-        final description = data['description'] ?? 'Албан тушаал зарлагдлаа';
-        final jobUrl = data['jobUrl'];
-        final companyImageUrl = data['companyImageUrl'] ?? data['imageUrl'];
-
-        debugPrint('💼 Foreground job → Live Activity: $company - $jobTitle');
-        _ensureJobActivity(company, jobTitle, description, companyImageUrl, jobUrl);
-      }
-    });
-    OneSignal.Notifications.addClickListener((event) {
-      debugPrint('👆 Notification clicked: ${event.notification.title}');
-      final data = event.notification.additionalData ?? {};
-
-      // On click: show ONLY Live Activities, nothing else
-      final notificationType = data['type'] ?? 'ride';
-      if (notificationType == 'job') {
-        final company = data['company'] ?? event.notification.title ?? 'Company';
-        final jobTitle = data['jobTitle'] ?? event.notification.body ?? 'Job Opening';
-        final description = data['description'] ?? 'Албан тушаал зарлагдлаа';
-        final companyImageUrl = data['companyImageUrl'] ?? data['imageUrl'];
-        final jobUrl = data['jobUrl'];
-        debugPrint('👆 Click → Job Live Activity');
-        _ensureJobActivity(company, jobTitle, description, companyImageUrl, jobUrl);
-      }
-
-      // Handle action
-      final action = data['action'];
-      if (action == 'update') {
-        // Also reflect updates through Live Activity
-        if ((data['type'] ?? 'ride') == 'job') {
-          _ensureJobActivity(
-            data['company'] ?? event.notification.title ?? 'Company',
-            data['jobTitle'] ?? event.notification.body ?? 'Job Opening',
-            data['description'] ?? 'Албан тушаал зарлагдлаа',
-            data['companyImageUrl'] ?? data['imageUrl'],
-            data['jobUrl'],
-          );
-        }
-      }
-    });
-
-    // Handle incoming FCM messages while app is in foreground
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('Message received (FG): ${message.notification?.title}');
-      final data = message.data;
-      // Foreground: reflect ONLY via Live Activities (job)
-      _ensureJobActivity(
-        data['company'] ?? message.notification?.title ?? 'Company',
-        data['jobTitle'] ?? message.notification?.body ?? 'Job Opening',
-        data['description'] ?? 'Албан тушаал зарлагдлаа',
-        data['companyImageUrl'] ?? data['imageUrl'],
-        data['jobUrl'],
-      );
-    });
-
-    // Print FCM device token for debugging
-    getDeviceToken();
-
-    // Initialize live_activities (iOS requires appGroupId; Android safely ignores)
-    _initLiveActivities();
-
-    // Listen for native notification button actions forwarded via MethodChannel
-    // const nativeChannel = MethodChannel('com.example.foreground/service');
-    // nativeChannel.setMethodCallHandler((call) async {
-    //   if (call.method == 'onNotificationAction') {
-    //     final args = call.arguments as Map?;
-    //     final action = args != null ? args['action'] as String? : null;
-    //     print('Notification action from native: $action');
-    //     if (action == 'stop') {
-    //       await _stopService();
-    //     } else if (action == 'call') {
-    //       // Example: show a snackbar or handle call action
-    //       _scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(content: Text('Call action tapped')));
-    //     } else if (action == 'navigate') {
-    //       _scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(content: Text('Navigate action tapped')));
-    //     }
-    //   }
-    // });
   }
 
-  // Removed ride Live Activity helper; focusing on job Live Activity only
-
-  Future<void> _ensureJobActivity(String company, String jobTitle, String description, String? companyImageUrl, String? jobUrl) async {
-    try {
-      // If an activity already exists, update; else create a new one
-      if (_latestActivityId == null) {
-        final id = await _live.createActivity(
-          _jobAttributesType,
-          {
-            'company': company,
-            'jobTitle': jobTitle,
-            'description': description,
-            if (companyImageUrl != null) 'companyImageUrl': companyImageUrl,
-            if (jobUrl != null) 'jobUrl': jobUrl,
-            'postedAt': DateTime.now().millisecondsSinceEpoch,
-          },
-        );
-        _latestActivityId = id;
-        debugPrint('Job Live Activity created: $id');
-      } else {
-        await _live.updateActivity(_latestActivityId!, {
-          'company': company,
-          'jobTitle': jobTitle,
-          'description': description,
-          if (companyImageUrl != null) 'companyImageUrl': companyImageUrl,
-          if (jobUrl != null) 'jobUrl': jobUrl,
-          'updatedAt': DateTime.now().millisecondsSinceEpoch,
-        });
-        debugPrint('Job Live Activity updated: $_latestActivityId');
-      }
-    } catch (e) {
-      debugPrint('Job Live Activity ensure failed: $e');
-    }
-  }
-
-  Future<void> _initLiveActivities() async {
-    try {
-      await _live.init(appGroupId: 'group.your.app');
-      // Listen activity updates to keep push token / ids (optional)
-      _live.activityUpdateStream.listen((event) {
-        event.map(
-          active: (a) {
-            _latestActivityId = a.activityId;
-            debugPrint('LiveActivity active: id=${a.activityId}, token=${a.activityToken}');
-          },
-          ended: (a) {
-            debugPrint('LiveActivity ended: id=${a.activityId}');
-          },
-          unknown: (a) {
-            debugPrint('LiveActivity unknown: id=${a.activityId}');
-          },
-          stale: (a) {
-            debugPrint('LiveActivity stale: id=${a.activityId}');
-          },
-        );
-      });
-    } catch (e) {
-      debugPrint('live_activities init failed: $e');
-    }
-  }
-
-  Future<void> _createLiveActivity() async {
-    try {
-      final id = await _live.createActivity(
-        _attributesType,
-        {
-          'matchName': 'Derby',
-          'matchStartDate': DateTime.now().millisecondsSinceEpoch,
-          'teamAName': 'Team A',
-          'teamAScore': 0,
-          'teamBName': 'Team B',
-          'teamBScore': 0,
-          // Optional images
-          //'teamAImageUrl': 'https://example.com/a.png',
-          //'teamBImageUrl': 'https://example.com/b.png',
-        },
-      );
-      _latestActivityId = id;
-      _scaffoldMessengerKey.currentState?.showSnackBar(SnackBar(content: Text('Live Activity created: $id')));
-    } catch (e) {
-      _scaffoldMessengerKey.currentState?.showSnackBar(SnackBar(content: Text('Create failed: $e')));
-    }
-  }
-
-  Future<void> _updateLiveActivity() async {
-    try {
-      final id = _latestActivityId;
-      if (id == null) {
-        _scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(content: Text('No activity to update')));
-        return;
-      }
-      await _live.updateActivity(id, {
-        'teamAScore': 1,
-        'teamBScore': 0,
-      });
-      _scaffoldMessengerKey.currentState?.showSnackBar(SnackBar(content: Text('Live Activity updated: $id')));
-    } catch (e) {
-      _scaffoldMessengerKey.currentState?.showSnackBar(SnackBar(content: Text('Update failed: $e')));
-    }
-  }
-
-  Future<void> _endLiveActivity() async {
-    try {
-      final id = _latestActivityId;
-      if (id == null) {
-        _scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(content: Text('No activity to end')));
-        return;
-      }
-      await _live.endActivity(id);
-      _scaffoldMessengerKey.currentState?.showSnackBar(SnackBar(content: Text('Live Activity ended: $id')));
-      _latestActivityId = null;
-    } catch (e) {
-      _scaffoldMessengerKey.currentState?.showSnackBar(SnackBar(content: Text('End failed: $e')));
-    }
-  }
-
-  Future<void> getDeviceToken() async {
-    try {
-      FirebaseMessaging messaging = FirebaseMessaging.instance;
-      String? token = await messaging.getToken();
-      print('🔥 FCM Device Token: $token');
-    } catch (e) {
-      print('Failed to get FCM token: $e');
-    }
-  }
-
+  @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter + Native Foreground',
+      title: 'OneSignal Job Notifications',
       scaffoldMessengerKey: _scaffoldMessengerKey,
       home: Scaffold(
-        appBar: AppBar(title: const Text('Uber-like Notification (Android)')),
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Live Activities (plugin)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              const Divider(height: 32),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _createLiveActivity,
-                child: const Text('Create Live Activity'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _updateLiveActivity,
-                child: const Text('Update Live Activity'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _endLiveActivity,
-                child: const Text('End Live Activity'),
-              ),
-              const Divider(height: 32),
-              const Text('OneSignal Push Notifications', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            ],
+        appBar: AppBar(title: const Text('OneSignal (Job Only)')),
+        body: const Padding(
+          padding: EdgeInsets.all(16),
+          child: Text(
+            'Flutter only initializes OneSignal.\n\n'
+            'Foreground + background custom job notifications are rendered in Kotlin '
+            '(NotificationServiceExtension + foreground lifecycle listener).\n\n'
+            'Set YOUR_ONESIGNAL_APP_ID in lib/main.dart.',
           ),
         ),
       ),

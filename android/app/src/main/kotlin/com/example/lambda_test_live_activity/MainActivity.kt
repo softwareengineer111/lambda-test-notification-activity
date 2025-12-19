@@ -1,90 +1,29 @@
 package com.example.lambda_test_live_activity
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
-import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.plugin.common.MethodChannel
-import com.example.live_activities.LiveActivityManagerHolder
 
 class MainActivity: FlutterActivity() {
-    private val CHANNEL = "com.example.foreground/service"
-    private var methodChannel: MethodChannel? = null
-    private var pendingNotifAction: String? = null
-
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-
-        methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
-        methodChannel?.setMethodCallHandler { call, result ->
-            when (call.method) {
-                "startService" -> {
-                    // Deprecated: ride foreground service removed
-                    result.success("ignored")
-                }
-                "updateService" -> {
-                    // Deprecated: ride foreground service removed
-                    result.success("ignored")
-                }
-                "stopService" -> {
-                    // Deprecated: ride foreground service removed
-                    result.success("ignored")
-                }
-                "showCustomNotification" -> {
-                    val args = call.arguments as? Map<String, String>
-                    val title = args?.get("title") ?: "Ride"
-                    val status = args?.get("status") ?: args?.get("text") ?: "Driver arriving..."
-                    val eta = args?.get("eta") ?: "5 min"
-                    // Deprecated: ride notification removed
-                    // RideNotificationHelper.show(applicationContext, title, status, eta)
-                    result.success(true)
-                }
-                "showJobNotification" -> {
-                    val args = call.arguments as? Map<String, String>
-                    val company = args?.get("company") ?: "Company"
-                    val jobTitle = args?.get("jobTitle") ?: "Job Opening"
-                    val description = args?.get("description") ?: "New position available"
-                    val jobUrl = args?.get("jobUrl")
-                    val imageUrl = args?.get("imageUrl")
-                    JobNotificationHelper.show(applicationContext, company, jobTitle, description, jobUrl, imageUrl)
-                    result.success(true)
-                }
-                else -> result.notImplemented()
-            }
-        }
-
-        // Wire custom Live Activity manager for Android RemoteViews integration
-        LiveActivityManagerHolder.instance = CustomLiveActivityManager(this)
-
-        // If there was a pending notification action (activity launched from notification before channel ready), forward it now
-        pendingNotifAction?.let { action ->
-            methodChannel?.invokeMethod("onNotificationAction", mapOf("action" to action))
-            pendingNotifAction = null
-        }
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        handleLiveActivityIntent(intent)
     }
 
-    private fun handleNotificationIntent(intent: Intent?) {
-        intent?.getStringExtra("notif_action")?.let { action ->
-            // If Dart side is ready, invoke method. Otherwise store it to send later.
-            if (methodChannel != null) {
-                methodChannel?.invokeMethod("onNotificationAction", mapOf("action" to action))
-            } else {
-                pendingNotifAction = action
-            }
-        }
-        
-        // Handle Live Activity click with job URL
+    private fun handleLiveActivityIntent(intent: Intent?) {
         if (intent?.getBooleanExtra("from_live_activity", false) == true) {
             val jobUrl = intent.getStringExtra("job_url")
             if (jobUrl != null) {
-                android.util.Log.d("MainActivity", "🔗 Live Activity clicked with jobUrl: $jobUrl")
-                // Open URL in browser
+                Log.d("MainActivity", "Live Activity clicked with jobUrl: $jobUrl")
                 try {
-                    val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(jobUrl))
-                    browserIntent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(jobUrl)).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
                     startActivity(browserIntent)
                 } catch (e: Exception) {
-                    android.util.Log.e("MainActivity", "Failed to open URL: $jobUrl", e)
+                    Log.e("MainActivity", "Failed to open URL: $jobUrl", e)
                 }
             }
         }
@@ -93,13 +32,7 @@ class MainActivity: FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleNotificationIntent(intent)
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // Handle initial intent if activity started from notification
-        handleNotificationIntent(intent)
+        handleLiveActivityIntent(intent)
     }
 }
 

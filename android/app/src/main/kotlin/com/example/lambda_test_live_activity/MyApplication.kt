@@ -8,33 +8,54 @@ import com.onesignal.notifications.INotificationLifecycleListener
 import com.onesignal.notifications.INotificationWillDisplayEvent
 
 class MyApplication : Application() {
+
+    companion object {
+        // TODO: Replace with your OneSignal App ID
+        private const val ONE_SIGNAL_APP_ID = "YOUR_ONESIGNAL_APP_ID"
+    }
     
     override fun onCreate() {
         super.onCreate()
         
         // Initialize OneSignal
         OneSignal.Debug.logLevel = LogLevel.VERBOSE
-        OneSignal.initWithContext(this, "be13a59a-95c4-43c5-b104-43d3b3f1921d")
-        
-        // Handle notifications in ALL states (foreground + background)
+        OneSignal.initWithContext(this, ONE_SIGNAL_APP_ID)
+
+        // Foreground: only intercept job notifications and render our custom RemoteViews.
         OneSignal.Notifications.addForegroundLifecycleListener(object : INotificationLifecycleListener {
             override fun onWillDisplay(event: INotificationWillDisplayEvent) {
-                Log.d("MyApplication", "Foreground notification intercepted")
-                
-                // Get notification data
                 val notification = event.notification
                 val additionalData = notification.additionalData
-                
-                // Show custom notification
-                OneSignalNotificationHandler.handleNotification(
-                    applicationContext,
-                    notification.title,
-                    notification.body,
-                    additionalData
-                )
-                
-                // Prevent default OneSignal notification from showing
+
+                val type = additionalData?.optString("type")
+                val isJob = type == "job" || additionalData?.has("jobTitle") == true || additionalData?.has("company") == true
+                if (!isJob) return
+
+                Log.d("MyApplication", "Foreground job notification intercepted")
                 event.preventDefault()
+
+                val company = additionalData?.optString("company")?.takeIf { it.isNotBlank() }
+                    ?: notification.title
+                    ?: "Company"
+                val jobTitle = additionalData?.optString("jobTitle")?.takeIf { it.isNotBlank() }
+                    ?: notification.body
+                    ?: "Job Opening"
+                val description = additionalData?.optString("description")?.takeIf { it.isNotBlank() }
+                    ?: "Албан тушаал зарлагдлаа"
+                val jobUrl = additionalData?.optString("jobUrl")?.takeIf { it.isNotBlank() }
+                val companyImageUrl = additionalData?.optString("companyImageUrl")?.takeIf { it.isNotBlank() }
+                    ?: additionalData?.optString("imageUrl")?.takeIf { it.isNotBlank() }
+                val postedAtMillis = additionalData?.optLong("postedAt")?.takeIf { it > 0 }
+
+                LiveActivityNotificationHelper.show(
+                    context = applicationContext,
+                    company = company,
+                    jobTitle = jobTitle,
+                    description = description,
+                    jobUrl = jobUrl,
+                    companyImageUrl = companyImageUrl,
+                    postedAtMillis = postedAtMillis,
+                )
             }
         })
 
