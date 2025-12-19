@@ -16,6 +16,11 @@
         android:name=".MyApplication"
         android:icon="@mipmap/ic_launcher">
 
+        <!-- OneSignal background/terminated notification customization hook -->
+        <meta-data
+            android:name="com.onesignal.NotificationServiceExtension"
+            android:value="com.example.lambda_test_live_activity.OneSignalLiveActivityServiceExtension" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

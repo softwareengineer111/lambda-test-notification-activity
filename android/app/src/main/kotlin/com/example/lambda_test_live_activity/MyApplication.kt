@@ -37,9 +37,9 @@ class MyApplication : Application() {
                 event.preventDefault()
             }
         })
-        
-        // Note: Background notification handling is done via MyFirebaseMessagingService
-        // which intercepts OneSignal FCM messages and shows custom notifications
-        Log.d("MyApplication", "OneSignal initialized - background notifications handled by FCM service")
+
+        // Background/terminated notifications are customized via the OneSignal
+        // NotificationServiceExtension registered in AndroidManifest.xml.
+        Log.d("MyApplication", "OneSignal initialized")
     }
 }
