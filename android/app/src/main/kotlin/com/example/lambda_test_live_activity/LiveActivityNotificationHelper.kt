@@ -33,16 +33,26 @@ object LiveActivityNotificationHelper {
     ) {
         createChannel(context)
 
-        val remoteViews = RemoteViews(context.packageName, R.layout.live_activity)
-        remoteViews.setTextViewText(R.id.team1_name, company)
-        remoteViews.setTextViewText(R.id.team2_name, jobTitle)
-        remoteViews.setTextViewText(R.id.score, description)
+        val collapsedViews = RemoteViews(context.packageName, R.layout.live_activity)
+        val expandedViews = RemoteViews(context.packageName, R.layout.live_activity_expanded)
+
+        for (views in listOf(collapsedViews, expandedViews)) {
+            views.setTextViewText(R.id.team1_name, company)
+            views.setTextViewText(R.id.team2_name, jobTitle)
+            views.setTextViewText(R.id.score, description)
+
+            // If there is no company image URL, hide the far-left logo area.
+            // Note: this does NOT hide Android's mandatory small notification icon.
+            val logoVisibility = if (companyImageUrl.isNullOrEmpty()) android.view.View.GONE else android.view.View.VISIBLE
+            views.setViewVisibility(R.id.team1_image_placeholder, logoVisibility)
+        }
 
         val postedAt = postedAtMillis ?: System.currentTimeMillis()
         val elapsedRealtime = android.os.SystemClock.elapsedRealtime()
         val currentTimeMillis = System.currentTimeMillis()
         val base = elapsedRealtime - (currentTimeMillis - postedAt)
-        remoteViews.setChronometer(R.id.match_time, base, null, true)
+        collapsedViews.setChronometer(R.id.match_time, base, null, true)
+        expandedViews.setChronometer(R.id.match_time, base, null, true)
 
         val clickIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -65,9 +75,8 @@ object LiveActivityNotificationHelper {
             .setContentIntent(clickPendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-            .setCustomContentView(remoteViews)
-            .setCustomBigContentView(remoteViews)
+            .setCustomContentView(collapsedViews)
+            .setCustomBigContentView(expandedViews)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -77,7 +86,8 @@ object LiveActivityNotificationHelper {
             CoroutineScope(Dispatchers.Main).launch {
                 val logo = withContext(Dispatchers.IO) { loadImageBitmap(context, companyImageUrl) }
                 if (logo != null) {
-                    remoteViews.setImageViewBitmap(R.id.team1_image_placeholder, logo)
+                    collapsedViews.setImageViewBitmap(R.id.team1_image_placeholder, logo)
+                    expandedViews.setImageViewBitmap(R.id.team1_image_placeholder, logo)
                     manager.notify(NOTIF_ID, builder.build())
                 }
             }
