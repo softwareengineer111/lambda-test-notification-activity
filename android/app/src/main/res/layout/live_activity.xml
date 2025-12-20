@@ -5,18 +5,8 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:padding="12dp"
-    android:background="@android:color/transparent"
-    android:gravity="center_vertical">
-
-    <!-- Company Logo -->
-    <ImageView
-        android:id="@+id/team1_image_placeholder"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        android:scaleType="centerCrop"
-        android:background="@android:color/transparent"
-        android:src="@mipmap/ic_launcher"
-        android:contentDescription="Company Logo" />
+    android:gravity="center_vertical"
+    android:background="@android:color/transparent">
 
     <!-- Job Details -->
     <LinearLayout
@@ -24,7 +14,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:orientation="vertical"
-        android:layout_marginStart="12dp">
+        android:layout_marginEnd="12dp">
 
         <!-- Company Name -->
         <TextView
@@ -63,7 +53,16 @@
             android:ellipsize="end" />
     </LinearLayout>
 
-    <!-- Hidden Team 2 Image (kept for compatibility) -->
+    <!-- Company Logo (RIGHT SIDE) -->
+    <ImageView
+        android:id="@+id/team1_image_placeholder"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:scaleType="centerCrop"
+        android:src="@mipmap/ic_launcher"
+        android:contentDescription="Company Logo" />
+
+    <!-- Hidden Team 2 Image (compatibility) -->
     <ImageView
         android:id="@+id/team2_image_placeholder"
         android:layout_width="0dp"
