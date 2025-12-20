@@ -10,8 +10,8 @@ import com.onesignal.notifications.INotificationWillDisplayEvent
 class MyApplication : Application() {
 
     companion object {
-        // TODO: Replace with your OneSignal App ID
-        private const val ONE_SIGNAL_APP_ID = "YOUR_ONESIGNAL_APP_ID"
+        // Must match the OneSignal App ID used in Flutter (lib/main.dart)
+        private const val ONE_SIGNAL_APP_ID = "be13a59a-95c4-43c5-b104-43d3b3f1921d"
     }
     
     override fun onCreate() {
