@@ -49,6 +49,9 @@ dependencies {
     implementation 'com.google.firebase:firebase-messaging:24.0.0'
     // OneSignal native SDK for notification handling
     implementation 'com.onesignal:OneSignal:[5.0.0, 5.99.99]'
+
+    // Image loading (for RemoteViews we load as Bitmap)
+    implementation 'com.github.bumptech.glide:glide:4.16.0'
 }
 
 apply plugin: 'com.google.gms.google-services'

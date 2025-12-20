@@ -59,7 +59,9 @@
         android:layout_width="56dp"
         android:layout_height="56dp"
         android:scaleType="centerCrop"
-        android:src="@mipmap/ic_launcher"
+        android:background="@drawable/bg_company_circle"
+        android:clipToOutline="true"
+        android:src="@drawable/ic_company_placeholder"
         android:contentDescription="Company Logo" />
 
     <!-- Hidden Team 2 Image (compatibility) -->

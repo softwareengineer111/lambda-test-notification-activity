@@ -6,17 +6,15 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.Build
+import android.util.TypedValue
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
+import com.bumptech.glide.Glide
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.net.HttpURLConnection
-import java.net.URL
 
 object LiveActivityNotificationHelper {
     private const val CHANNEL_ID = "job_alerts"
@@ -37,6 +35,9 @@ object LiveActivityNotificationHelper {
         remoteViews.setTextViewText(R.id.team1_name, company)
         remoteViews.setTextViewText(R.id.team2_name, jobTitle)
         remoteViews.setTextViewText(R.id.score, description)
+
+        // Always show a placeholder first (also used for error state).
+        remoteViews.setImageViewResource(R.id.team1_image_placeholder, R.drawable.ic_company_placeholder)
 
         val clickIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -59,7 +60,6 @@ object LiveActivityNotificationHelper {
             .setContentIntent(clickPendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setCustomContentView(remoteViews)
             .setCustomBigContentView(remoteViews)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -69,7 +69,9 @@ object LiveActivityNotificationHelper {
 
         if (!companyImageUrl.isNullOrEmpty()) {
             CoroutineScope(Dispatchers.Main).launch {
-                val logo = withContext(Dispatchers.IO) { loadImageBitmap(context, companyImageUrl) }
+                val logo = withContext(Dispatchers.IO) {
+                    loadCircleLogoBitmap(context, companyImageUrl)
+                }
                 if (logo != null) {
                     remoteViews.setImageViewBitmap(R.id.team1_image_placeholder, logo)
                     manager.notify(NOTIF_ID, builder.build())
@@ -93,21 +95,20 @@ object LiveActivityNotificationHelper {
         }
     }
 
-    private fun loadImageBitmap(context: Context, imageUrl: String): Bitmap? {
+    private fun loadCircleLogoBitmap(context: Context, imageUrl: String): Bitmap? {
         return try {
-            val url = URL(imageUrl)
-            val connection = (url.openConnection() as HttpURLConnection).apply {
-                doInput = true
-                connectTimeout = 3000
-                readTimeout = 3000
-            }
-            connection.connect()
-            connection.inputStream.use { inputStream ->
-                val original = BitmapFactory.decodeStream(inputStream) ?: return null
-                val dp = context.resources.displayMetrics.density
-                val targetPx = (56 * dp).toInt()
-                Bitmap.createScaledBitmap(original, targetPx, targetPx, true)
-            }
+            val sizePx = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                56f,
+                context.resources.displayMetrics
+            ).toInt()
+
+            Glide.with(context.applicationContext)
+                .asBitmap()
+                .load(imageUrl)
+                .circleCrop()
+                .submit(sizePx, sizePx)
+                .get()
         } catch (_: Exception) {
             null
         }
