@@ -38,12 +38,6 @@ object LiveActivityNotificationHelper {
         remoteViews.setTextViewText(R.id.team2_name, jobTitle)
         remoteViews.setTextViewText(R.id.score, description)
 
-        val postedAt = postedAtMillis ?: System.currentTimeMillis()
-        val elapsedRealtime = android.os.SystemClock.elapsedRealtime()
-        val currentTimeMillis = System.currentTimeMillis()
-        val base = elapsedRealtime - (currentTimeMillis - postedAt)
-        remoteViews.setChronometer(R.id.match_time, base, null, true)
-
         val clickIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("job_url", jobUrl)

@@ -5,7 +5,7 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:padding="12dp"
-    android:background="@android:color/white"
+    android:background="@android:color/transparent"
     android:gravity="center_vertical">
 
     <!-- Company Logo -->
@@ -33,7 +33,7 @@
             android:layout_height="wrap_content"
             android:text="Компани нэр"
             android:textColor="@android:color/black"
-            android:textSize="16sp"
+            android:textSize="14sp"
             android:textStyle="bold"
             android:maxLines="1"
             android:ellipsize="end" />
@@ -45,7 +45,7 @@
             android:layout_height="wrap_content"
             android:text="Ажлын байр"
             android:textColor="@android:color/darker_gray"
-            android:textSize="14sp"
+            android:textSize="12sp"
             android:layout_marginTop="2dp"
             android:maxLines="1"
             android:ellipsize="end" />
@@ -61,30 +61,6 @@
             android:layout_marginTop="4dp"
             android:maxLines="2"
             android:ellipsize="end" />
-
-        <!-- Posted Time -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="6dp"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Зарласан: "
-                android:textSize="11sp"
-                android:textColor="@android:color/tertiary_text_light" />
-
-            <Chronometer
-                android:id="@+id/match_time"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="11sp"
-                android:textColor="@android:color/tertiary_text_light"
-                android:format="%s" />
-        </LinearLayout>
     </LinearLayout>
 
     <!-- Hidden Team 2 Image (kept for compatibility) -->
